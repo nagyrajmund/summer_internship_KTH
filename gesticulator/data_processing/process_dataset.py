@@ -3,7 +3,7 @@ This script does the preprocessing of the dataset specified in --proc_data_dir,
 and stores the results in the same folder as .npy files.
 It should be used before training, as described in the README.md file.
 
-@author: Taras Kucherenko
+@authors: Taras Kucherenko, Rajmund Nagy
 """
 
 import os.path
