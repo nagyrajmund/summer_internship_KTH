@@ -9,7 +9,7 @@ This repository contains PyTorch based implementation of the framework for seman
 - ffmpeg (for visualization)
 
 ### Installation
-NOTE: during installation, there will be two error messages (oen for bert-embedding and one for mxnet) about conflicting packages - those can be ignored.
+NOTE: during installation, there will be two error messages (one for bert-embedding and one for mxnet) about conflicting packages - those can be ignored.
 
 ```
 git clone git@github.com:Svito-zar/gesticulator.git

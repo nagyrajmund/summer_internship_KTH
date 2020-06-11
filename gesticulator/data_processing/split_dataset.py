@@ -2,7 +2,7 @@
 This script is used to split the dataset into train, test and dev sets.
 More info on its usage is given in the main README.md file 
 
-@author: Taras Kucherenko
+@authors: Taras Kucherenko, Rajmund Nagy
 """
 
 import sys
