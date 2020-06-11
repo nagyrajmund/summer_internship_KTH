@@ -6,9 +6,9 @@ It should be used before training, as described in the README.md file.
 @authors: Taras Kucherenko, Rajmund Nagy
 """
 
-import os.path
-import tqdm
+from os import path
 
+import tqdm
 import pandas as pd
 import numpy as np
 
@@ -18,7 +18,6 @@ from gesticulator.data_processing import tools
 from gesticulator.data_processing.data_params import parser
 
 from bert_embedding import BertEmbedding
-from os import path
 
 def _encode_vectors(audio_filename, gesture_filename, text_filename, bert_model, mode, args, augment_with_context):
     """
