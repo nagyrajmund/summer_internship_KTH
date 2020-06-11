@@ -4,9 +4,9 @@ import os
 
 # ToDo 1: set path to this folder for importing PyMo properly
 
-from aamas20_visualizer.bvh2npy import convert_bvh2npy
-from aamas20_visualizer.model_animator import create_video
-from aamas20_visualizer.convert2bvh import write_bvh
+from motion_visualizer.bvh2npy import convert_bvh2npy
+from motion_visualizer.model_animator import create_video
+from motion_visualizer.convert2bvh import write_bvh
 
 from pymo.writers import *
 
@@ -80,9 +80,9 @@ def generate_videos(raw_input_folder, output_folder, run_name, data_pipe_dir, st
         # shorten
         motion = motion[:1200]
 
-        resulting_bvh_file   = output_folder + filename + ".bvh"
-        resulting_npy_file   = output_folder + filename +"_3d.npy"
-        resulting_video_file = output_folder + filename + ".mp4"
+        resulting_bvh_file   = output_folder + "/" +  filename + ".bvh"
+        resulting_npy_file   = output_folder + "/" + filename +"_3d.npy"
+        resulting_video_file = output_folder + "/" + filename + ".mp4"
 
         visualize(motion,
                   resulting_bvh_file,

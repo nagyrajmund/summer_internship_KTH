@@ -248,4 +248,5 @@ if __name__ == "__main__":
     create_dataset('dev',  bert_embedding, args, save_in_separate_files=True)
     create_dataset('test', bert_embedding, args, save_in_separate_files=True)
 
+    abs_path = path.abspath(args.proc_data_dir)
     print(f"Datasets are created and saved at {abs_path} !")

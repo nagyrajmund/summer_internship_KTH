@@ -3,10 +3,10 @@ import argparse
 import numpy as np
 import os
 
-from aamas20_visualizer.model_animator import create_video
+from motion_visualizer.model_animator import create_video
 from pymo.writers import BVHWriter
-from aamas20_visualizer.read_bvh import read_bvh_to_array
-from aamas20_visualizer.convert2bvh import write_bvh
+from motion_visualizer.read_bvh import read_bvh_to_array
+from motion_visualizer.convert2bvh import write_bvh
 
 
 __DEFAULT_DAT_FILE_LOCATION = os.path.join(
