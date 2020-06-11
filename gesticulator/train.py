@@ -10,7 +10,7 @@ from gesticulator.model import My_Model
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
-from visualization.aamas20_visualizer.generate_videos import generate_videos
+from visualization.motion_visualizer.generate_videos import generate_videos
 SEED = 2334
 torch.manual_seed(SEED)
 np.random.seed(SEED)

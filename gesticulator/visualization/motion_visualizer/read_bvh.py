@@ -5,7 +5,7 @@
 # @author: Taras Kucherenko
 
 
-import aamas20_visualizer.bvh_helper as BVH
+import motion_visualizer.bvh_helper as BVH
 
 import numpy as np
 
