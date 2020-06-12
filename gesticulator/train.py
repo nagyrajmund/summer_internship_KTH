@@ -15,8 +15,6 @@ SEED = 2334
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
-USE_GPU = False # True #
-
 
 def main(hparams):
     # TODO: add support for FastText embedding
@@ -24,7 +22,7 @@ def main(hparams):
         print("WARNING: Only BERT embedding is supported at the moment.")
         print(f"The model will use BERT instead of the given embedding ('{hparams.text_embedding}')!.\n")
 
-    model = My_Model(hparams, USE_GPU)
+    model = My_Model(hparams)
 
     # DEFAULTS used by Trainer
     early_stop_callback = EarlyStopping(

@@ -49,17 +49,15 @@ class My_Model(pl.LightningModule):
     """
     Our autoregressive model definition.
 
-    For details, please see the documentation for Pytorch-Lightning: 
+    For details regarding the code structure, please see the documentation for Pytorch-Lightning: 
         https://pytorch-lightning.readthedocs.io/en/stable/new-project.html
     """
 
-    def __init__(self, args, use_gpu):
+    def __init__(self, args):
 
         super().__init__()
 
         self.hyper_params = args
-        self.use_gpu = use_gpu
-
         self.create_result_folders()
 
         # The datasets are created here because they contain necessary information for building the layers (namely the audio dimensionality)
@@ -272,7 +270,7 @@ class My_Model(pl.LightningModule):
         for time_st in range(past_context, len(audio[0]) - future_context):
 
             # take current audio and text of the speech
-            curr_audio = audio[:, time_st - past_context:time_st+future_context] # TODO make sure this works
+            curr_audio = audio[:, time_st - past_context:time_st+future_context]
             curr_text = text[:, time_st-past_context:time_st+future_context]
             curr_speech = torch.cat((curr_audio, curr_text), 2)
             # encode speech
@@ -392,7 +390,7 @@ class My_Model(pl.LightningModule):
         predicted_gesture = self.forward(audio, text, use_conditioning, true_gesture)
 
         # remove last frames which had no future info and hence were not predicted
-        true_gesture = true_gesture[:,
+        true_gesture = true_gesture[:,  
                        self.hyper_params.past_context:-self.hyper_params.future_context]
         
         # Get training loss
@@ -543,8 +541,8 @@ class My_Model(pl.LightningModule):
         """
         # TODO(RN): magic numbers
         duration = 10 * 20  # how long each sequence is
-        pre = 10  # how many previous frames we need
-        fut = 20  # how many future frames we need
+        pre = self.hyper_params.past_context  # how many previous frames we need
+        fut = self.hyper_params.future_context  # how many future frames we need
 
         pca = load('utils/pca_model_12.joblib')
 
