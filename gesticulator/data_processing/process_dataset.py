@@ -136,9 +136,11 @@ def _encode_vectors(audio_filename, gesture_filename, text_filename, bert_model,
     output_vectors_final = np.array([output_vectors[i - args.past_context : i + n_reserved_inds]
                                      for i in range(start_ind, stop_ind, seq_step)])
     
+    # The text was sampled at half the sampling rate compared to audio
+    # So the 1 frame of text corresponds to 2 frames of audio
     stop_ind = text_encoding.shape[0] - n_reserved_inds // 2
     text_vectors_final   = np.array([text_encoding[i - args.past_context // 2 : i + n_reserved_inds // 2]
-                                     for i in range(start_ind // 2, stop_ind, seq_step // 2)]) # COMMENT: Why is the window halved?
+                                     for i in range(start_ind // 2, stop_ind, seq_step // 2)]) 
 
     if debug:
         print(input_vectors_final.shape)
