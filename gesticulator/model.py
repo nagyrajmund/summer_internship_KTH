@@ -53,14 +53,34 @@ class My_Model(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/stable/new-project.html
     """
 
-    def __init__(self, args):
+    def __init__(self, args, inference_mode=False, audio_dim=None, mean_pose_file=None):
 
         super().__init__()
 
         self.hyper_params = args
         self.create_result_folders()
 
-        # The datasets are created here because they contain necessary information for building the layers (namely the audio dimensionality)
+        if inference_mode:
+            if audio_dim is None or mean_pose_file is None:
+                print("ERROR: Please provide the 'audio_dim' and the 'mean_pose_file' parameters for My_Model when using inference mode!")
+                exit(-1)
+            
+            self.audio_dim = audio_dim
+            self.mean_pose = np.load(mean_pose_file)
+        else:
+            # The datasets are created here because they contain necessary information for building the layers (namely the audio dimensionality)
+            self.load_datasets()
+            self.audio_dim = self.train_dataset.audio_dim
+            self.calculate_mean_pose()
+
+        self.build_layers(args)
+        self.init_layers()
+
+        self.rnn_is_initialized = False
+        self.loss = nn.MSELoss()
+        self.teaching_freq = 0
+
+    def load_datasets(self):
         try:
             self.train_dataset = SpeechGestureDataset(self.hyper_params.data_dir, self.hyper_params.use_pca, train=True)
             self.val_dataset   = SpeechGestureDataset(self.hyper_params.data_dir, self.hyper_params.use_pca, train=False)
@@ -72,16 +92,7 @@ class My_Model(pl.LightningModule):
                 print(f"ERROR: Missing data in the dataset!")
             print(err)
             exit(-1)
-        
-        self.build_layers(args)
-        self.init_layers()
-        self.calculate_mean_pose()
-
-        self.rnn_is_initialized = False
-        self.loss = nn.MSELoss()
-        self.teaching_freq = 0
-
-
+    
     def create_result_folders(self):
         """Create the 'models', 'val_gest' and 'test_videos' directories within the <results>/<run_name> folder."""
         run_name = self.hyper_params.run_name
@@ -167,7 +178,7 @@ class My_Model(pl.LightningModule):
             self.encode_speech = nn.GRU(self.train_dataset.audio_dim + self.text_dim, self.gru_size, 2,
                                         dropout=args.dropout, bidirectional=True)
         else:
-            self.encode_speech = nn.Sequential(nn.Linear(self.train_dataset.audio_dim + self.text_dim,
+            self.encode_speech = nn.Sequential(nn.Linear(self.audio_dim + self.text_dim,
                                                args.speech_enc_frame_dim * 2), self.activation,
                                                nn.Dropout(args.dropout), nn.Linear(args.speech_enc_frame_dim*2,
                                                                                    args.speech_enc_frame_dim),
@@ -268,7 +279,6 @@ class My_Model(pl.LightningModule):
         past_context   = self.hyper_params.past_context
         future_context = self.hyper_params.future_context
         for time_st in range(past_context, len(audio[0]) - future_context):
-
             # take current audio and text of the speech
             curr_audio = audio[:, time_st - past_context:time_st+future_context]
             curr_text = text[:, time_st-past_context:time_st+future_context]
@@ -510,7 +520,7 @@ class My_Model(pl.LightningModule):
         loader = torch.utils.data.DataLoader(
             dataset=self.val_dataset,
             batch_size=self.hyper_params.batch_size,
-            shuffle=True
+            shuffle=False
         )
         return loader
 

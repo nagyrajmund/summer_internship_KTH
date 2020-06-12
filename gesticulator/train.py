@@ -33,9 +33,13 @@ def main(hparams):
         mode='min'
     )
     trainer = Trainer.from_argparse_args(hparams)
-
     trainer.fit(model)
-    trainer.save_checkpoint(os.path.join(model.save_dir, 'checkpoint'))
+    
+    # Save the model
+    model_data = {'state_dict' : model.state_dict(), 'hparams': model.hyper_params}
+    save_path  = os.path.join(model.save_dir, 'trained_model_data')
+    torch.save(model_data, save_path)
+
     trainer.test(model)
 
     if hparams.save_videos_after_testing:
