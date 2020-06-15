@@ -65,8 +65,6 @@ class My_Model(pl.LightningModule):
         super().__init__()
 
         self.hyper_params = args
-        self.create_result_folders()
-
         if inference_mode:
             if audio_dim is None or mean_pose_file is None:
                 print("ERROR: Please provide the 'audio_dim' and the 'mean_pose_file' parameters for My_Model when using inference mode!")
@@ -75,7 +73,9 @@ class My_Model(pl.LightningModule):
             self.audio_dim = audio_dim
             self.mean_pose = np.load(mean_pose_file)
         else:
-            # The datasets are created here because they contain necessary information for building the layers (namely the audio dimensionality)
+            self.create_result_folders()
+
+            # The datasets are loaded here because they contain necessary information for building the layers (namely the audio dimensionality)
             self.load_datasets()
             self.audio_dim = self.train_dataset.audio_dim
             self.calculate_mean_pose()
