@@ -5,7 +5,7 @@ It should be used before training, as described in the README.md file.
 
 @authors: Taras Kucherenko, Rajmund Nagy
 """
-
+import os
 from os import path
 
 import tqdm

@@ -54,6 +54,10 @@ def main(hparams):
 
 if __name__ == '__main__':
     parent_parser = ArgumentParser(add_help=False)
+    parent_parser.add_argument('--train', '-train', action="store_true",
+                               help="If set, train the model (using the command-line args for Trainer if they're given)")
+    parent_parser.add_argument('--test', '-test', action="store_true",
+                               help="If set, test the model (using the command-line args for Trainer if they're given)")
     parent_parser.add_argument('--save_videos_after_testing', '-save_vids', action="store_true",
                             help="If set, generate test videos from the raw gesture data after the testing phase is over.")
     parser = My_Model.add_model_specific_args(parent_parser)
