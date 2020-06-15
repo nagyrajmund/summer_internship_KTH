@@ -15,6 +15,16 @@ SEED = 2334
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
+def save_videos(save_dir, run_name):
+    """Generate the gesticulation videos for a test sequence."""
+    raw_gesture_path = os.path.join(save_dir, 'test_videos/raw_data')
+    output_dir = os.path.join(save_dir, 'test_videos')
+    data_pipe = 'utils/data_pipe.sav'
+
+    generate_videos(raw_input_folder=raw_gesture_path,
+                    output_folder=output_dir, 
+                    run_name=run_name,
+                    data_pipe_dir=data_pipe)
 
 def main(hparams):
     # TODO: add support for FastText embedding
@@ -33,31 +43,32 @@ def main(hparams):
         mode='min'
     )
     trainer = Trainer.from_argparse_args(hparams)
-    trainer.fit(model)
+
+    if not hparams.no_train:
+        trainer.fit(model)
     
     # Save the model
-    model_data = {'state_dict' : model.state_dict(), 'hparams': model.hyper_params}
     save_path  = os.path.join(model.save_dir, 'trained_model_data')
+    print(f"Saving the model to {save_path}...")
+    model_data = {'state_dict' : model.state_dict(), 'hparams': model.hyper_params}
     torch.save(model_data, save_path)
 
-    trainer.test(model)
+    if hparams.no_test:
+        if hparams.save_videos_after_testing:
+            print("Please enable the testing procedure for saving the videos by removing the --no_test flag!")
+    else:
+        trainer.test(model)
 
-    if hparams.save_videos_after_testing:
-        raw_gesture_path = os.path.join(model.save_dir, 'test_videos/raw_data')
-        output_dir = os.path.join(model.save_dir, 'test_videos')
-        data_pipe = 'utils/data_pipe.sav'
-        generate_videos(raw_input_folder=raw_gesture_path,
-                        output_folder=output_dir, 
-                        run_name=hparams.run_name,
-                        data_pipe_dir=data_pipe)
+        if hparams.save_videos_after_testing:
+            save_videos(model.save_dir, hparams.run_name)
 
 
 if __name__ == '__main__':
     parent_parser = ArgumentParser(add_help=False)
-    parent_parser.add_argument('--train', '-train', action="store_true",
-                               help="If set, train the model (using the command-line args for Trainer if they're given)")
-    parent_parser.add_argument('--test', '-test', action="store_true",
-                               help="If set, test the model (using the command-line args for Trainer if they're given)")
+    parent_parser.add_argument('--no_train', '-no_train', action="store_true",
+                               help="If set, skip the training phase")
+    parent_parser.add_argument('--no_test', '-no_test', action="store_true",
+                               help="If set, skip the testing phase")
     parent_parser.add_argument('--save_videos_after_testing', '-save_vids', action="store_true",
                             help="If set, generate test videos from the raw gesture data after the testing phase is over.")
     parser = My_Model.add_model_specific_args(parent_parser)
