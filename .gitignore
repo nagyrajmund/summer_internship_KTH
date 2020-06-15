@@ -1,3 +1,4 @@
 /dataset/*
+/dataset/README.md
 /results/*
 /gesticulator/lightning_logs/*

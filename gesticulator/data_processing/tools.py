@@ -106,14 +106,14 @@ def calculate_spectrogram(audio_filename):
     """ Calculate spectrogram for the audio file
     Args:
         audio_filename: audio file name
+        duration: the duration (in seconds) that should be read from the file (can be used to load just a part of the audio file)
     Returns:
         log spectrogram values
     """
 
-    DIM = int(64)
+    DIM = 64
 
     audio, sample_rate = librosa.load(audio_filename)
-
     # Make stereo audio being mono
     if len(audio.shape) == 2:
         audio = (audio[:, 0] + audio[:, 1]) / 2
@@ -138,7 +138,6 @@ def calculate_mfcc(audio_filename):
         feature_vectors: MFCC feature vector for the given audio file
     """
     fs, audio = wav.read(audio_filename)
-
     # Make stereo audio being mono
     if len(audio.shape) == 2:
         audio = (audio[:, 0] + audio[:, 1]) / 2
