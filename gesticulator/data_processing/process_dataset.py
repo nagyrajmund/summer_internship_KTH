@@ -5,6 +5,7 @@ It should be used before training, as described in the README.md file.
 
 @authors: Taras Kucherenko, Rajmund Nagy
 """
+import argparse
 import os
 from os import path
 
@@ -15,9 +16,10 @@ import numpy as np
 from gesticulator.data_processing.text_features.parse_json_transcript import encode_json_transcript
 from gesticulator.data_processing import tools
 # Params
-from gesticulator.data_processing.data_params import parser
+from gesticulator.data_processing.data_params import processing_argparser
 
 from bert_embedding import BertEmbedding
+from torchnlp.word_to_vector import FastText
 
 def _encode_vectors(audio_filename, gesture_filename, text_filename, bert_model, mode, args, augment_with_context):
     """
@@ -224,8 +226,18 @@ def _save_dataset(data_csv, save_dir, bert_model, dataset_name, args):
 
     print(f"Final dataset sizes:\n  X: {X.shape}\n  Y: {Y.shape}")
 
+def create_embedding(name):
+    if name == "BERT":
+        embedding = BertEmbedding(max_seq_length=100, model='bert_12_768_12', # COMMENT: will we ever change max_seq_length?
+                                  dataset_name='book_corpus_wiki_en_cased')
+    elif name == "FastText":
+        embedding = FastText()
+    else:
+        print(f"ERROR: Unknown embedding type '{args.text_embedding}'! Supported embeddings: 'BERT' and 'FastText'.")
+    
+
 if __name__ == "__main__":
-    args = parser.parse_args()
+    args = processing_argparser.parse_args()
   
     # Check if the dataset exists
     if not os.path.exists(args.proc_data_dir):
@@ -235,19 +247,17 @@ if __name__ == "__main__":
         print("Please provide the correct folder to the dataset in the '-proc_data_dir' argument.")
         exit(-1)
 
-    # Load BERT model
-    bert_embedding = BertEmbedding(max_seq_length=100, model='bert_12_768_12', # COMMENT: will we ever change max_seq_length?
-                                   dataset_name='book_corpus_wiki_en_cased')
+    embedding = create_embedding(args.text_embedding)
 
     print("Creating datasets...")
     print("Creating train dataset...")
-    create_dataset('train', bert_embedding, args, save_in_separate_files=False)
+    create_dataset('train', embedding, args, save_in_separate_files=False)
     print("Creating dev dataset...")
-    create_dataset('dev',   bert_embedding, args, save_in_separate_files=False)
+    create_dataset('dev',   embedding, args, save_in_separate_files=False)
 
     print("Creating test sequences")
-    create_dataset('dev',  bert_embedding, args, save_in_separate_files=True)
-    create_dataset('test', bert_embedding, args, save_in_separate_files=True)
+    create_dataset('dev',  embedding, args, save_in_separate_files=True)
+    create_dataset('test', embedding, args, save_in_separate_files=True)
 
     abs_path = path.abspath(args.proc_data_dir)
     print(f"Datasets are created and saved at {abs_path} !")

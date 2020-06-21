@@ -4,7 +4,6 @@ More info on its usage is given in the main README.md file
 
 @authors: Taras Kucherenko, Rajmund Nagy
 """
-
 import sys
 import os
 import shutil
@@ -12,7 +11,7 @@ import pandas
 from os import path
 
 # Params
-from gesticulator.data_processing.data_params import parser
+from gesticulator.data_processing.data_params import dataset_argparser
 
 # Indices for train/dev/test split
 # TODO(RN): These globals should be removed
@@ -145,9 +144,8 @@ def check_dataset_directories(raw_data_dir):
             print(f"ERROR: The '{name}' directory is missing from the given dataset folder: '{raw_data_dir}'!") 
             exit(-1)
 
-
 if __name__ == "__main__":
-    args = parser.parse_args()
+    args = dataset_argparser.parse_args()
     
     check_dataset_directories(args.raw_data_dir) 
     create_dataset_splits(args.raw_data_dir, args.proc_data_dir)
