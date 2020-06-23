@@ -2,8 +2,9 @@ import os.path
 
 import numpy as np
 from bert_embedding import BertEmbedding
+from torchnlp.word_to_vector.fast_text import FastText
 
-from gesticulator.data_processing.text_features.parse_json_transcript import encode_json_transcript
+from gesticulator.data_processing.text_features.parse_json_transcript import encode_json_transcript_with_bert, encode_json_transcript_with_fasttext
 from gesticulator.data_processing import tools
 from gesticulator.model import My_Model
 import torch
@@ -17,37 +18,38 @@ class GesturePredictor:
     
     def __init__(self, 
                  model : My_Model, feature_type : str, 
-                 past_context : int, future_context : int):
+                 past_context : int = None, future_context : int = None):
         """An interface for generating gestures from a trained model.
 
         Args:
             model:           the trained Gesticulator model
             feature_type:    the feature type in the input data (must be the same as it was in the training dataset!)
-            past_context:    the number of previous timesteps to use as context
-            future_context:  the number of future timesteps to use as context
+            past_context:    the number of previous timesteps to use as context (default: the past_context of the model)
+            future_context:  the number of future timesteps to use as context (default: the future_context of the model)
         """
-        self.model = model
-        self.model.eval()
+        if past_context is None:
+            past_context = model.hyper_params.past_context
 
+        if future_context is None:
+            future_context = model.hyper_params.future_context
+
+        self.model = model.eval() # Put the model into 'testing' mode
         self.feature_type = feature_type
-        print("Creating bert embedding for GesturePredictor interface...", end=' ')
-        self.bert_embedding = BertEmbedding(max_seq_length=100, 
-                                        model='bert_12_768_12', # COMMENT: will we ever change max_seq_length?
-                                        dataset_name='book_corpus_wiki_en_cased')
-
+        self.embedding = self._create_embedding(model.text_dim)
+        
         if feature_type not in self.supported_features:
             print(f"ERROR: unknown feature type '{self.feature_type}'!")
             print(f"Possible values: {self.supported_features}")
             exit(-1)
 
-        print("Done!")
+        print("GesturePredictor has been succesfully created!")
         
     def predict_gestures(self, audio_fname, text_fname, bvh_fname=None):
         """ Predict the gesticulation for the given audio and text inputs.
         Args:
             audio_path:  the path to the audio input
             text_path:   the path to the text input
-            bvh_fname:   if given, the motions are converted and saved as joint 
+            bvh_fname:   if given, the motions are converted and saved to this path
         
         Returns: 
             predicted_motion:  the predicted gesticulation in the exponential map format
@@ -68,7 +70,20 @@ class GesturePredictor:
 
     # -------- Private methods --------
 
-    def tensor_from_numpy(self, array):
+    def _create_embedding(self, text_dim):
+        if model.text_dim == 773:
+            print("Creating bert embedding for GesturePredictor interface", end=' ')
+            return BertEmbedding(max_seq_length=100, model='bert_12_768_12', 
+                                           dataset_name='book_corpus_wiki_en_cased')
+        elif model.text_dim == 305:
+            print("Creating FastText embedding for GesturePredictor interface", end=' ')
+            return FastText()
+        else:
+            print(f"ERROR: Unexpected text dimensionality ({model.text_dim})!")
+            print("       Currently supported embeddings are BERT (773 dim.) and FastText (305 dim.).")
+            exit(-1)
+        
+    def _tensor_from_numpy(self, array):
         """Create a tensor from the given numpy array on the correct device and in the correct format."""
         device = self.model.encode_speech[0].weight.device
         tensor = torch.as_tensor(torch.from_numpy(array), device=device).float()
@@ -102,6 +117,16 @@ class GesturePredictor:
         print(f"Possible values: {self.supported_features}.")
         exit(-1)
 
+    def _extract_text_features(self, text_fname):
+        if isinstance(self.embedding, BertEmbedding):
+            return encode_json_transcript_with_bert(text_fname, self.embedding)
+        elif isinstance(self.embedding, FastText):
+            return encode_json_transcript_with_fasttext(text_fname, self.embedding)
+        else:
+            print('ERROR: Unknown embedding: ', self.embedding)
+            exit(-1)
+        
+
     def _align_vector_lengths(self, audio_features, encoded_text):
         min_len = min(len(audio_features), 2 * len(encoded_text))
         tools.shorten(audio_features, encoded_text, min_len)
@@ -112,8 +137,9 @@ class GesturePredictor:
 
     def _extract_features(self, audio_fname, text_fname):
         audio_features = self._extract_audio_features(audio_fname)
-        encoded_text   = encode_json_transcript(text_fname, self.bert_embedding)
+        encoded_text   = self._extract_text_features(text_fname)
+        
         self._align_vector_lengths(audio_features, encoded_text)
 
-        T = self.tensor_from_numpy
+        T = self._tensor_from_numpy
         return T(audio_features), T(encoded_text)
