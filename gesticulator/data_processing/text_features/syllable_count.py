@@ -1,7 +1,7 @@
 import re
 
 
-def sylco(word) :
+def count_syllables(word) :
     word = word.lower()
 
     # exception_add are words that need extra syllables
@@ -148,6 +148,6 @@ def syl_count(word):
         numb_syl = [len(list(y for y in x if y[-1].isdigit())) for x in d[word.lower()]][0]
     except:
         print("Except!")
-        numb_syl = sylco(word)
+        numb_syl = count_syllables(word)
 
     return numb_syl
