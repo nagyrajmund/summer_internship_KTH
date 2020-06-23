@@ -13,7 +13,7 @@ import tqdm
 import pandas as pd
 import numpy as np
 
-from gesticulator.data_processing.text_features.parse_json_transcript import encode_json_transcript
+from gesticulator.data_processing.text_features.parse_json_transcript import encode_json_transcript_with_bert
 from gesticulator.data_processing import tools
 # Params
 from gesticulator.data_processing.data_params import processing_argparser
@@ -57,7 +57,6 @@ def _encode_vectors(audio_filename, gesture_filename, text_filename, bert_model,
     # Step 1: Vectorizing speech, with features of 'n_inputs' dimension, time steps of 0.01s
     # and window length with 0.025s => results in an array of 100 x 'n_inputs'
     
-    # TODO(RN): test whether MFCC and prosody work!
     if args.feature_type == "MFCC":
 
         input_vectors = tools.calculate_mfcc(audio_filename)
@@ -98,7 +97,7 @@ def _encode_vectors(audio_filename, gesture_filename, text_filename, bert_model,
     output_vectors = output_vectors[0::3]
 
     # Step 3: Obtain text transcription:
-    text_encoding = encode_json_transcript(text_filename, bert_model)
+    text_encoding = encode_json_transcript_with_bert(text_filename, bert_model)
 
     if debug:
         print(input_vectors.shape)
@@ -166,7 +165,6 @@ def create_dataset(dataset_name, bert_model, args, save_in_separate_files):
     """
     csv_path = path.join(args.proc_data_dir, f"{dataset_name}-dataset-info.csv")
     data_csv = pd.read_csv(csv_path)
-    
     if save_in_separate_files:
         save_dir = path.join(args.proc_data_dir, f'{dataset_name}_inputs') # e.g. dataset/processed/dev_inputs/
         
@@ -228,14 +226,14 @@ def _save_dataset(data_csv, save_dir, bert_model, dataset_name, args):
 
 def create_embedding(name):
     if name == "BERT":
-        embedding = BertEmbedding(max_seq_length=100, model='bert_12_768_12', # COMMENT: will we ever change max_seq_length?
-                                  dataset_name='book_corpus_wiki_en_cased')
+        return BertEmbedding(max_seq_length=100, model='bert_12_768_12', # COMMENT: will we ever change max_seq_length?
+                             dataset_name='book_corpus_wiki_en_cased')
     elif name == "FastText":
-        embedding = FastText()
+        return FastText()
     else:
         print(f"ERROR: Unknown embedding type '{args.text_embedding}'! Supported embeddings: 'BERT' and 'FastText'.")
-    
-
+        exit(-1)
+        
 if __name__ == "__main__":
     args = processing_argparser.parse_args()
   
@@ -248,7 +246,6 @@ if __name__ == "__main__":
         exit(-1)
 
     embedding = create_embedding(args.text_embedding)
-
     print("Creating datasets...")
     print("Creating train dataset...")
     create_dataset('train', embedding, args, save_in_separate_files=False)
