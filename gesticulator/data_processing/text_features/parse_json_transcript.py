@@ -36,7 +36,7 @@ def encode_json_transcript_with_bert(json_file, bert_model):
 
     Args:
         json_file:        json of transcript of the speech signal by Google ASR
-        embedding:        text embedding model
+        bert_model:       BERT model
 
     Returns:
         feature_array:  an array of shape (n_frames, 773), where n_frames is the number of timeframes.
@@ -52,7 +52,7 @@ def encode_json_transcript_with_bert(json_file, bert_model):
     delimiters = ['.', '!', '?']
 
     silence_encoding = np.array([-15 for i in range(768)]) # BERT has 768-dimensional features
-    silent_frame_features = [0, 0, 0, 0, 0]
+    silence_extra_features = [0, 0, 0, 0, 0]
     
     elapsed_deciseconds = 0   
     feature_array = []
@@ -100,7 +100,7 @@ def encode_json_transcript_with_bert(json_file, bert_model):
             while elapsed_deciseconds < word_attributes['start_time']:
                 elapsed_deciseconds += 1
                 sentence_word_indices_list.append(0) # The idx 0 is reserved for silence
-                sentence_extra_features_list.append(silent_frame_features)
+                sentence_extra_features_list.append(silence_extra_features)
 
             # Process the voiced frames           
             while elapsed_deciseconds < word_attributes['end_time']:
@@ -210,10 +210,10 @@ def encode_json_transcript_with_fasttext(json_file, fasttext_model):
             while elapsed_deciseconds < word_attributes['end_time']:
                 elapsed_deciseconds += 1
 
-                frame_features = extract_extra_features(
-                                    word_attributes, elapsed_deciseconds)
+                frame_extra_features = extract_extra_features(
+                                            word_attributes, elapsed_deciseconds)
 
-                feature_array.append(list(word_encoding) + frame_features)
+                feature_array.append(list(word_encoding) + frame_extra_features)
 
     if len(feature_array) != elapsed_deciseconds:
         print(f"ERROR: The number of frames in the encoded transcript ({len(feature_array)})") 
@@ -292,10 +292,10 @@ def extract_word_attributes(word_data):
     # Syllables per decisecond
     speed = count_syllables(word) / duration if duration > 0 else 10 # Because the text freq. is 10FPS
 
-    feature_dict = { 'start_time': start_time, 'end_time': end_time,
-                     'duration': duration, 'speed': speed }
+    attributes = { 'start_time': start_time, 'end_time': end_time,
+                   'duration': duration, 'speed': speed }
     
-    return feature_dict
+    return attributes
 
 def extract_extra_features(word_attributes, total_elapsed_time):
     """Return the word encoding and the additional features for the current frame as a list.

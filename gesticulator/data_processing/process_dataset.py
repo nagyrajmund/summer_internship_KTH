@@ -5,7 +5,6 @@ It should be used before training, as described in the README.md file.
 
 @authors: Taras Kucherenko, Rajmund Nagy
 """
-import argparse
 import os
 from os import path
 
@@ -171,7 +170,7 @@ def create_dataset(dataset_name, embedding_model, args, save_in_separate_files):
     if save_in_separate_files:
         save_dir = path.join(args.proc_data_dir, f'{dataset_name}_inputs') # e.g. dataset/processed/dev_inputs/
         
-        if not os.path.isdir(save_dir):
+        if not path.isdir(save_dir):
             os.makedirs(save_dir)
 
         _save_data_as_sequences(data_csv, save_dir, embedding_model, dataset_name, args)
@@ -241,7 +240,7 @@ if __name__ == "__main__":
     args = processing_argparser.parse_args()
   
     # Check if the dataset exists
-    if not os.path.exists(args.proc_data_dir):
+    if not path.exists(args.proc_data_dir):
         abs_path = path.abspath(args.proc_data_dir)
 
         print(f"ERROR: The given dataset folder for the processed data ({abs_path}) does not exist!")
