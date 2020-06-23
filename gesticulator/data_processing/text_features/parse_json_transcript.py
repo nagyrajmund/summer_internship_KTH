@@ -3,11 +3,7 @@ This file contains script to parse json transcript file and encode it by BERT mo
 """
 import json
 import numpy as np
-from argparse import ArgumentParser
-from bert_embedding import BertEmbedding
-from torchnlp.word_to_vector import FastText
 from gesticulator.data_processing.text_features.syllable_count import count_syllables
-from dataclasses import dataclass
 
 def encode_json_transcript_with_bert(json_file, bert_model):
     """
@@ -129,7 +125,62 @@ def encode_json_transcript_with_bert(json_file, bert_model):
                 frame_word_idx_list = []
                 frame_features_list = []
 
-    if len(output_features) != elapsed_deciseconds-1:
+    if len(output_features) != elapsed_deciseconds:
+        print(f"ERROR: The number of frames in the encoded transcript ({len(output_features)})") 
+        print(f"       does not match the number of frames in the input ({elapsed_deciseconds})!")
+        
+        exit(-1)
+
+    return np.array(output_features)
+
+def encode_json_transcript_with_fasttext(json_file, fasttext_model):
+    fillers = ["eh", "ah", "like", "kind of"]
+    delimiters = ['.', '!', '?']
+    filler_encoding  = fasttext_model["ah"]
+    silence_encoding = np.array([-15 for i in range(300)]) # Fasttext has 300-dimensional features
+    # The extra text features for silence are all zeros
+    silence_features = [0, 0, 0, 0, 0]
+   
+    elapsed_deciseconds = 0   
+    output_features = []
+    
+    # The JSON files contain about a minute long segments
+    with open(json_file, 'r') as file:
+        transcription_segments = json.load(file)
+    
+    for segment in transcription_segments: 
+        segment_words = segment['alternatives'][0]['words']    
+
+        for word_data in segment_words:   
+            word = word_data['word']
+
+            # The delimiters are not relevant to FastText
+            for d in delimiters: 
+                word.replace(d, '') 
+
+            # Word-level features: duration, speed, start time, end time 
+            word_level_extra_features = extract_word_features(word_data)
+
+            # NOTE: Each frame below is one decisecond long
+            
+            # Process the silent frames before the word starts
+            while elapsed_deciseconds < word_level_extra_features['start_time']:
+                elapsed_deciseconds += 1
+                # The silent frames have the same features and encoding
+                output_features.append(list(silence_encoding) + silence_features)
+            
+            word_encoding = filler_encoding if word in fillers else fasttext_model[word]
+
+            # Process the voiced frames             
+            while elapsed_deciseconds < word_level_extra_features['end_time']:
+                elapsed_deciseconds += 1
+
+                frame_features = extract_voiced_frame_features(
+                                    word_level_extra_features, elapsed_deciseconds)
+
+                output_features.append(list(word_encoding) + frame_features)
+
+    if len(output_features) != elapsed_deciseconds:
         print(f"ERROR: The number of frames in the encoded transcript ({len(output_features)})") 
         print(f"       does not match the number of frames in the input ({elapsed_deciseconds})!")
         

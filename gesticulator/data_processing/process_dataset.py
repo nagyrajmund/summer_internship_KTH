@@ -13,7 +13,7 @@ import tqdm
 import pandas as pd
 import numpy as np
 
-from gesticulator.data_processing.text_features.parse_json_transcript import encode_json_transcript_with_bert
+from gesticulator.data_processing.text_features.parse_json_transcript import encode_json_transcript_with_bert, encode_json_transcript_with_fasttext
 from gesticulator.data_processing import tools
 # Params
 from gesticulator.data_processing.data_params import processing_argparser
@@ -21,7 +21,7 @@ from gesticulator.data_processing.data_params import processing_argparser
 from bert_embedding import BertEmbedding
 from torchnlp.word_to_vector import FastText
 
-def _encode_vectors(audio_filename, gesture_filename, text_filename, bert_model, mode, args, augment_with_context):
+def _encode_vectors(audio_filename, gesture_filename, text_filename, embedding_model, mode, args, augment_with_context):
     """
     Extract features from a given pair of audio and motion files.
     To be used by "_save_data_as_sequences" and "_save_dataset" functions.
@@ -30,7 +30,7 @@ def _encode_vectors(audio_filename, gesture_filename, text_filename, bert_model,
         audio_filename:        file name for an audio file (.wav)
         gesture_filename:      file name for a motion file (.bvh)
         text_filename:         file name with the text transcript (.json)
-        bert_model:            BERT model to encode the text with
+        embedding_model:       the embedding model to encode the text with
         mode:                  dataset type ('train', 'dev' or 'test')
         args:                  see the 'create_dataset' function for details
         augment_with_context:  if True, the data sequences will be augmented with future/past context 
@@ -97,7 +97,10 @@ def _encode_vectors(audio_filename, gesture_filename, text_filename, bert_model,
     output_vectors = output_vectors[0::3]
 
     # Step 3: Obtain text transcription:
-    text_encoding = encode_json_transcript_with_bert(text_filename, bert_model)
+    if isinstance(embedding_model, BertEmbedding):
+        text_encoding = encode_json_transcript_with_bert(text_filename, embedding_model)
+    elif isinstance(embedding_model, FastText):
+        text_encoding = encode_json_transcript_with_fasttext(text_filename, embedding_model)
 
     if debug:
         print(input_vectors.shape)
@@ -151,14 +154,14 @@ def _encode_vectors(audio_filename, gesture_filename, text_filename, bert_model,
     return input_vectors_final, text_vectors_final, output_vectors_final
 
 
-def create_dataset(dataset_name, bert_model, args, save_in_separate_files):
+def create_dataset(dataset_name, embedding_model, args, save_in_separate_files):
     """
     Create a dataset using the "encode_vectors" function, 
     then save the input features and the labels as .npy files.
 
     Args:
         dataset_name:           dataset name ('train', 'test' or 'dev')
-        bert_model:             BERT model to encode the text with
+        embedding_model:        the embedding model to encode the text with
         save_in_separate_files: if True, the datapoints will be saved in separate files instead of a single
                                 numpy array (intended use is with the test/dev dataset!) 
         args:                   see 'data_params.py' for details
@@ -171,20 +174,20 @@ def create_dataset(dataset_name, bert_model, args, save_in_separate_files):
         if not os.path.isdir(save_dir):
             os.makedirs(save_dir)
 
-        _save_data_as_sequences(data_csv, save_dir, bert_model, dataset_name, args)
+        _save_data_as_sequences(data_csv, save_dir, embedding_model, dataset_name, args)
     else:
         save_dir = args.proc_data_dir
 
-        _save_dataset(data_csv, save_dir, bert_model, dataset_name, args)
+        _save_dataset(data_csv, save_dir, embedding_model, dataset_name, args)
 
-def _save_data_as_sequences(data_csv, save_dir, bert_model, dataset_name, args):
+def _save_data_as_sequences(data_csv, save_dir, embedding_model, dataset_name, args):
     """Save the datapoints in 'data_csv' as separate files to 'save_dir'."""    
     for i in tqdm.trange(len(data_csv)):
         text_file = data_csv['wav_filename'][i][:-3] + "json"
         
         input_vectors, text_vectors, _ = _encode_vectors(data_csv['wav_filename'][i],
                                                          data_csv['bvh_filename'][i],
-                                                         text_file, bert_model, mode=dataset_name, 
+                                                         text_file, embedding_model, mode=dataset_name, 
                                                          args=args, augment_with_context=False)
 
         filename    = data_csv['wav_filename'][i].split("/")[-1]
@@ -196,14 +199,14 @@ def _save_data_as_sequences(data_csv, save_dir, bert_model, dataset_name, args):
         np.save(x_save_path, input_vectors)
         np.save(t_save_path, text_vectors)
 
-def _save_dataset(data_csv, save_dir, bert_model, dataset_name, args):
+def _save_dataset(data_csv, save_dir, embedding_model, dataset_name, args):
     """Save the datapoints in 'data_csv' into three (speech, transcript, label) numpy arrays in 'save_dir'."""
     for i in tqdm.trange(len(data_csv)):
         text_file = data_csv['wav_filename'][i][:-3] + "json"
 
         input_vectors, text_vectors, output_vectors = _encode_vectors(data_csv['wav_filename'][i],
                                                                      data_csv['bvh_filename'][i],
-                                                                     text_file, bert_model, mode=dataset_name,
+                                                                     text_file, embedding_model, mode=dataset_name,
                                                                      args=args, augment_with_context=True)
         if i == 0:
             X = input_vectors
@@ -245,16 +248,16 @@ if __name__ == "__main__":
         print("Please provide the correct folder to the dataset in the '-proc_data_dir' argument.")
         exit(-1)
 
-    embedding = create_embedding(args.text_embedding)
+    embedding_model = create_embedding(args.text_embedding)
     print("Creating datasets...")
     print("Creating train dataset...")
-    create_dataset('train', embedding, args, save_in_separate_files=False)
+    create_dataset('train', embedding_model, args, save_in_separate_files=False)
     print("Creating dev dataset...")
-    create_dataset('dev',   embedding, args, save_in_separate_files=False)
+    create_dataset('dev',   embedding_model, args, save_in_separate_files=False)
 
     print("Creating test sequences")
-    create_dataset('dev',  embedding, args, save_in_separate_files=True)
-    create_dataset('test', embedding, args, save_in_separate_files=True)
+    create_dataset('dev',  embedding_model, args, save_in_separate_files=True)
+    create_dataset('test', embedding_model, args, save_in_separate_files=True)
 
     abs_path = path.abspath(args.proc_data_dir)
     print(f"Datasets are created and saved at {abs_path} !")
