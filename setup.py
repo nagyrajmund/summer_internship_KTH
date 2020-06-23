@@ -3,7 +3,7 @@ from setuptools import setup
 setup(name='gesticulator',
       version='0.1',
       description='Gesture generation',
-      url='https://github.com/GestureGeneration/Speech_driven_gesture_generation_with_autoencoder',
+      url='https://github.com/Svito-zar/gesticulator',
       author='Taras Kucherenko',
       author_email='tarask@kth.se',
       license='MIT',

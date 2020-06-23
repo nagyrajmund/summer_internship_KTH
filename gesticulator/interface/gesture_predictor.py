@@ -7,7 +7,7 @@ from gesticulator.data_processing.text_features.parse_json_transcript import enc
 from gesticulator.data_processing import tools
 from gesticulator.model import My_Model
 import torch
-from aamas20_visualizer.convert2bvh import write_bvh
+from motion_visualizer.convert2bvh import write_bvh
 
 # NOTE: Currently this interface will only work if it's used on  
 #           the same device that the model was trained on. # TODO(RN)
