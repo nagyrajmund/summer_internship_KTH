@@ -61,7 +61,7 @@ class GesturePredictor:
         predicted_motion = self.model.forward(audio, text, use_conditioning=True, motion=None)
 
         if bvh_fname is not None:
-            write_bvh(("../utils/data_pipe.sav",), 
+            write_bvh(("utils/data_pipe.sav",), 
                       predicted_motion.detach(),
                       bvh_fname, 
                       fps=20)
@@ -71,11 +71,11 @@ class GesturePredictor:
     # -------- Private methods --------
 
     def _create_embedding(self, text_dim):
-        if model.text_dim == 773:
-            print("Creating bert embedding for GesturePredictor interface", end=' ')
+        if text_dim == 773:
+            print("Creating bert embedding for GesturePredictor interface" , end=' ')
             return BertEmbedding(max_seq_length=100, model='bert_12_768_12', 
                                            dataset_name='book_corpus_wiki_en_cased')
-        elif model.text_dim == 305:
+        elif text_dim == 305:
             print("Creating FastText embedding for GesturePredictor interface", end=' ')
             return FastText()
         else:

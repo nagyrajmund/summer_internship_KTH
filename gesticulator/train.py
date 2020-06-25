@@ -27,21 +27,7 @@ def save_videos(save_dir, run_name):
                     data_pipe_dir=data_pipe)
 
 def main(hparams):
-    # TODO: add support for FastText embedding
-    if hparams.text_embedding != "BERT":
-        print("WARNING: Only BERT embedding is supported at the moment.")
-        print(f"The model will use BERT instead of the given embedding ('{hparams.text_embedding}')!.\n")
-
     model = My_Model(hparams)
-
-    # DEFAULTS used by Trainer
-    early_stop_callback = EarlyStopping(
-        monitor='avg_val_loss',
-        min_delta=0.00,
-        patience=5,
-        verbose=False,
-        mode='min'
-    )
     trainer = Trainer.from_argparse_args(hparams)
 
     if not hparams.no_train:
