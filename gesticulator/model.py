@@ -94,11 +94,12 @@ class My_Model(pl.LightningModule):
             self.val_dataset   = SpeechGestureDataset(self.hyper_params.data_dir, self.hyper_params.use_pca, train=False)
             self.test_dataset  = ValidationDataset(self.hyper_params.data_dir)
         except FileNotFoundError as err:
-            if not os.path.isdir(self.hyper_params.data_dir):
-                print(f"ERROR: The given dataset directory does not exist!\nPlease, set the correct path with the --data_dir option!")
+            abs_data_dir = os.path.abspath(self.hyper_params.data_dir)
+            if not os.path.isdir(abs_data_dir):
+                print(f"ERROR: The given dataset directory {abs_data_dir} does not exist!")
+                print("Please, set the correct path with the --data_dir option!")
             else:
-                print(f"ERROR: Missing data in the dataset!")
-            print(err)
+                print("ERROR: Missing data in the dataset!")
             exit(-1)
     
     
@@ -603,7 +604,7 @@ class My_Model(pl.LightningModule):
         Tensor_from_file = lambda fname : torch.as_tensor(torch.from_numpy(
                                                               np.load(path.join(self.hyper_params.data_dir, fname))), 
                                                           device=device).float()
-           # read data
+        # read data
         speech1 = Tensor_from_file('test_inputs/X_test_NaturalTalking_04.npy')
         text1   = Tensor_from_file('test_inputs/T_test_NaturalTalking_04.npy')
         # upsample text to get the same sampling rate as the audio
@@ -635,74 +636,5 @@ class My_Model(pl.LightningModule):
 
         # second part of semantic gestures
         self.create_test_gestures(sem_st_times_2, speech2, text2, 13, 7, "test_seman")
-
-
-    @staticmethod
-    def add_model_specific_args(parent_parser):
-        parser = ArgumentParser(parents=[parent_parser])
-
-        parser.add_argument('--sequence_length', '-seq_l', default=40, type=int,
-                            help='Length of each training sequence')
-        parser.add_argument('--past_context', '-p_cont', default=10, type=int,
-                            help='Length of past speech context to be used for generating gestures')
-        parser.add_argument('--future_context', '-f_cont', default=20, type=int,
-                            help='Length of future speech context to be used for generating gestures')
-        parser.add_argument('--text_context', '-txt_l', default=10, type=int,
-                            help='Length of (future) text context to be used for generating gestures')
-
-        # Flags
-        parser.add_argument('--use_pca', '-pca', action='store_true',
-                            help='If set, use PCA on the gestures')
-        parser.add_argument('--use_recurrent_speech_enc', '-use_rnn', action='store_true',
-                            help='If set, use only the rnn for encoding speech frames')
-        parser.add_argument('--suppress_warning', '-no_warn', action='store_true',
-                            help='If this flag is set, and the given <run_name> directory already exists, it will be cleared without displaying any warnings')
-
-        # Network architecture
-        parser.add_argument('--n_layers', '-lay', default=1, type=int,
-                            help='Number of hidden layer (excluding RNN)')
-        parser.add_argument('--speech_enc_frame_dim', '-speech_t_e', default=124, type=int,
-                            help='Dimensionality of the speech frame encoding')
-        parser.add_argument('--full_speech_enc_dim', '-speech_f_e', default=612, type=int,
-                            help='Dimensionality of the full speech encoding')
-        parser.add_argument('--activation', '-act', default="TanH", #default="LeakyReLU",
-                            help='which activation function to use (\'TanH\' or \'LeakyReLu\')')
-        parser.add_argument('--first_l_sz', '-first_l', default=256, type=int,
-                            help='Dimensionality of the first layer')
-        parser.add_argument('--second_l_sz', '-second_l', default=512, type=int,
-                            help='Dimensionality of the second layer')
-        parser.add_argument('--third_l_sz', '-third_l', default=384, type=int,
-                            help='Dimensionality of the third layer')
-        parser.add_argument('--n_prev_poses', '-pose_numb', default=3, type=int,
-                            help='Number of previous poses to consider for auto-regression')
-        parser.add_argument('--text_embedding', '-text_emb', default="BERT",
-                            help='Which text embedding do we use (\'BERT\' or \'FastText\')')
-        # Training params
-        parser.add_argument('--batch_size', '-btch', default=64, type=int,
-                            help='Batch size')
-        parser.add_argument('--learning_rate', '-lr', default=0.0001, type=float,
-                            help='Learning rate')
-        parser.add_argument('--dropout', '-drop', default=0.2, type=float,
-                            help='Dropout probability')
-        parser.add_argument('--vel_coef', '-vel_c', default=0.6, type=float, #0.3
-                            help='Coefficient for the velocity loss')
-        
-        # Folders params
-        parser.add_argument('--data_dir', '-data',
-                            default = '../dataset/processed',
-                            help='Path to a folder with the dataset')
-        parser.add_argument('--result_dir', '-res_d', default='../results',
-                            help='Path to the <results> directory, where all results are saved')
-        parser.add_argument('--run_name', '-name', default='last_run',
-                            help='Name of the subdirectory within <results> where the results of this run will be saved')
-        
-        parser.add_argument('--saved_models_dir', '-model_d', default=None,
-                            help='Path to the directory where models will be saved (default: <results>/<run_name>/models/')
-        parser.add_argument('--val_gest_dir', '-val_ges', default=None,
-                            help='Path to the directory where validation gestures will be saved (default: <results>/<run_name>/val_gest/')
-        parser.add_argument('--test_vid_dir', '-test_vid', default=None,
-                            help='Path to the directory where raw data for test videos will be saved (default: <results>/<run_name>/test_videos/raw_data/')
-
-        return parser
 
 
