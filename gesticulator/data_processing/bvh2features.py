@@ -1,7 +1,9 @@
 # This code was originally written by Simon Alexanderson (github.com/simonalexanderson),
 # but the current version is taken from the following commit by Taras Kucherenko: 
 # https://github.com/GestureGeneration/Speech_driven_gesture_generation_with_autoencoder/commit/daffa184779fb45c5a6ff1279a01c5e85b0eda37#diff-d95865ebf5428aa201840818a88d0fb5
-
+"""
+This script converts a gesticulation dataset from the BVH format to joint angles.
+"""
 import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
