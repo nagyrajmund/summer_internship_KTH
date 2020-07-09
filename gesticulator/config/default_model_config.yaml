@@ -28,8 +28,9 @@ full_speech_enc_dim:  612
 # ---- Training parameters ----
 batch_size:    64
 learning_rate: 0.0001
-dropout:       0.2
 vel_coef:      0.6 # The training loss is MSE(prediction, original) + vel_coef * MSE(velocity_pred, velocity_orig)
+dropout:       0.2
+dropout_multiplier: 4.0 # The dropout is multiplied by this factor in the conditioning layer
 
 # ---- Binary flags ---- (simply uncomment them to turn them on) 
 # use_pca

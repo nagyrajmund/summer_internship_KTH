@@ -1,16 +1,17 @@
 import os
 import sys
 
-from argparse import ArgumentParser
-
 import numpy as np
 import torch
 
-from gesticulator.model import My_Model
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
+
+from gesticulator.model import My_Model
+from config.model_config import construct_model_config_parser
 from visualization.motion_visualizer.generate_videos import generate_videos
+
 
 def save_videos(save_dir, run_name):
     """Generate the gesticulation videos for a test sequence."""
@@ -115,24 +116,26 @@ def main(hparams):
     
     hyper_param_search(hparams, values)
 
+def add_script_arguments(parser):
+    parser.add_argument("--search_type", '-search', help="Can be 'dropout_rate', 'dropout_multiplier' or 'vel_coef'")
+    parser.add_argument('--no_train', '-no_train', action="store_true",
+                               help="If set, skip the training phase")
+    parser.add_argument('--no_test', '-no_test', action="store_true",
+                               help="If set, skip the testing phase")
+    parser.add_argument('--save_videos_after_testing', '-save_vids', action="store_true",
+                            help="If set, generate test videos from the raw gesture data after the testing phase is over.")
+
+    return parser
 
 if __name__ == '__main__':
     seed = 2334
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    parent_parser = ArgumentParser(add_help=False)
-    parent_parser.add_argument("--search_type")
-    parent_parser.add_argument('--no_train', '-no_train', action="store_true",
-                               help="If set, skip the training phase")
-    parent_parser.add_argument('--no_test', '-no_test', action="store_true",
-                               help="If set, skip the testing phase")
-    parent_parser.add_argument('--save_videos_after_testing', '-save_vids', action="store_true",
-                            help="If set, generate test videos from the raw gesture data after the testing phase is over.")
-    parser = My_Model.add_model_specific_args(parent_parser)
+    parser = construct_model_config_parser()
+    parser = add_script_arguments(parser)
     parser = Trainer.add_argparse_args(parser)
 
     hyperparams = parser.parse_args()
-
     main(hyperparams)
 

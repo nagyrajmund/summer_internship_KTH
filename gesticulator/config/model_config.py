@@ -54,6 +54,7 @@ def construct_model_config_parser():
 
     parser.add('--speech_enc_frame_dim', '-speech_t_e', default=124, type=int,
                help='Dimensionality of the speech frame encoding')
+    
     parser.add('--full_speech_enc_dim', '-speech_f_e',  default=612, type=int,
                help='Dimensionality of the full speech encoding')
 
@@ -83,9 +84,10 @@ def construct_model_config_parser():
     # Training params
     parser.add('--batch_size',    '-btch',  default=64,     type=int,   help='Batch size')
     parser.add('--learning_rate', '-lr',    default=0.0001, type=float, help='Learning rate')
-    parser.add('--dropout',       '-drop',  default=0.2,    type=float, help='Dropout probability')
     parser.add('--vel_coef',      '-vel_c', default=0.6,    type=float, help='Coefficient for the velocity loss')
-    
+    parser.add('--dropout',       '-drop',  default=0.2,    type=float, help='Dropout probability')
+    parser.add('--dropout_multiplier', '-d_mult', default=4.0, type=float, help='The dropout is multiplied by this factor in the conditioning layer')
+
     # Flags
     parser.add('--use_pca', '-pca', action='store_true',
                help='If set, use PCA on the gestures')

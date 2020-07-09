@@ -200,7 +200,7 @@ class My_Model(pl.LightningModule):
 
         self.conditioning_1 = nn.Sequential(nn.Linear(self.output_dim * args.n_prev_poses,
                                                 args.first_l_sz * 2), self.activation,
-                                            nn.Dropout(args.dropout * 4))
+                                            nn.Dropout(args.dropout * args.dropout_multiplier))
 
     
     def init_layers(self):
