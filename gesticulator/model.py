@@ -123,14 +123,11 @@ class My_Model(pl.LightningModule):
                 else:
                     exit(-1)
 
-        if self.hyper_params.saved_models_dir is None:
-            self.hyper_params.saved_models_dir = path.join(self.save_dir, 'models')        
         if self.hyper_params.val_gest_dir is None:
             self.hyper_params.val_gest_dir = path.join(self.save_dir, 'val_gest')
         if self.hyper_params.test_vid_dir is None:
             self.hyper_params.test_vid_dir = path.join(self.save_dir, 'test_videos', 'raw_data')
         
-        os.makedirs(self.hyper_params.saved_models_dir)
         os.makedirs(self.hyper_params.val_gest_dir)
         os.makedirs(self.hyper_params.test_vid_dir)
                 
@@ -636,5 +633,3 @@ class My_Model(pl.LightningModule):
 
         # second part of semantic gestures
         self.create_test_gestures(sem_st_times_2, speech2, text2, 13, 7, "test_seman")
-
-

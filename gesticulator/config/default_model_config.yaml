@@ -4,7 +4,6 @@
 data_dir:   '../dataset/processed'
 result_dir: '../results'
 run_name:   'last_run'
-# saved_models_dir: # defaults to <result_dir>/<run_name>/models
 # val_gest_dir:     # defaults to <result_dir>/<run_name>/val_gest
 # test_vid_dir:     # defaults to <result_dir>/<run_name>/test_videos/raw_data
 
