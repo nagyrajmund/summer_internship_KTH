@@ -52,9 +52,8 @@ def hyper_param_search(hparams, values):
         trainer.fit(model)
 
         # 4. Save the trained models
-        filename = f'model_after_{model.current_epoch+1}_epochs.sav'
-        save_model(model, filename)
-
+        filename = f'model_after_{model.current_epoch+1}_epochs'
+        trainer.save_ckpt(filename)
         # 5. Generate and save the test videos
         trainer.test(model)
 
@@ -89,18 +88,9 @@ def update_save_dirs(hparams, value):
     
     hparams.run_name = f"{param}={value}"
     # These three dirs have to be nulled or they won't be created in the new run folder
-    hparams.saved_models_dir = None
     hparams.val_gest_dir = None
     hparams.test_vid_dir = None
 
-def save_model(model, filename):
-    # TODO this is a workaround
-    save_path  = os.path.join(model.save_dir, filename)
-    print(f"Saving the model to {save_path}...")
-    model_data = {'state_dict' : model.state_dict(), 
-                  'hparams': model.hyper_params}
-
-    torch.save(model_data, save_path)
 
 
 def main(hparams):

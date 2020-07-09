@@ -8,24 +8,24 @@ from config.model_config import construct_model_config_parser
 from gesticulator.model import My_Model
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
-
+from pytorch_lightning.logging import TensorBoardLogger
 from visualization.motion_visualizer.generate_videos import generate_videos
 SEED = 2334
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
 def main(hparams):
-    model = My_Model(hparams)
-    trainer = Trainer.from_argparse_args(hparams)
-
+    model   = My_Model(hparams)
+    logger  = create_logger(model.save_dir)
+    trainer = Trainer.from_argparse_args(hparams, logger=logger, 
+                                         default_root_dir=model.save_dir)
     if not hparams.no_train:
         trainer.fit(model)
     
     # Save the model
-    save_path  = os.path.join(model.save_dir, 'trained_model_data')
-    print(f"Saving the model to {save_path}...")
-    model_data = {'state_dict' : model.state_dict(), 'hparams': model.hyper_params}
-    torch.save(model_data, save_path)
+    filename = f'model_after_{model.current_epoch+1}_epochs'
+    checkpoint_path = os.path.join(model.hyper_params.result_dir, "/checkpoints/", filename)
+    trainer.save_checkpoint(checkpoint_path)
 
     if hparams.no_test:
         if hparams.save_videos_after_testing:
@@ -34,19 +34,20 @@ def main(hparams):
         trainer.test(model)
 
         if hparams.save_videos_after_testing:
-            save_videos(model.save_dir, hparams.run_name)
+            save_videos(model)
 
+def create_logger(model_save_dir):
+    # str.rpartition(sep) cuts up the string into a 3-tuple of
+    # (everything before the last sep, sep, everything after the last sep)
+    result_dir, _, run_name = model_save_dir.rpartition('/')
+    return TensorBoardLogger(save_dir=result_dir, version=run_name, name="")
 
-def save_videos(save_dir, run_name):
+def save_videos(model):
     """Generate the gesticulation videos for a test sequence."""
-    raw_gesture_path = os.path.join(save_dir, 'test_videos/raw_data')
-    output_dir = os.path.join(save_dir, 'test_videos')
-    data_pipe = 'utils/data_pipe.sav'
-
-    generate_videos(raw_input_folder=raw_gesture_path,
-                    output_folder=output_dir, 
-                    run_name=run_name,
-                    data_pipe_dir=data_pipe)
+    generate_videos(raw_input_folder=model.hyper_params.test_vid_dir,
+                    output_folder=model.hyper_params.val_gest_dir, 
+                    run_name=model.hyper_params.run_name,
+                    data_pipe_dir='utils/data_pipe.sav')
 
 
 def add_training_script_arguments(parser):
