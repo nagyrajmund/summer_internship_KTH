@@ -34,7 +34,14 @@ For all the scripts which we refer to in this repo description there are several
 ## 2. Pre-process the data
 ```
 cd gesticulator/data_processing
+
+# encode motion from BVH files into exponensial map representation
+python bvh2features.py
+
+# Split the dataset into training and validation
 python split_dataset.py
+
+# Encode all the features
 python process_dataset.py
 ```
 
