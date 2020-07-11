@@ -4,7 +4,7 @@ from argparse import ArgumentParser, Namespace
 import numpy as np
 import torch
 
-from gesticulator.model import My_Model
+from gesticulator.model import GesticulatorModel
 from pytorch_lightning import Trainer
 from test_tube import HyperOptArgumentParser
 from ray import tune
@@ -23,7 +23,7 @@ def main(config):
     for key, val in config.items():
         setattr(hparams, key, val)
 
-    model = My_Model(hparams)
+    model = GesticulatorModel(hparams)
 
     checkpoint_callback = ModelCheckpoint(
         filepath=hparams.model_path,
@@ -53,7 +53,7 @@ if __name__ == "__main__":
         help="supports three options dp, ddp, ddp2",
     )
 
-    parser = My_Model.add_model_specific_args(parent_parser)
+    parser = GesticulatorModel.add_model_specific_args(parent_parser)
     hyperparams = parser.parse_args()
 
     config = {}

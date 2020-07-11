@@ -44,7 +44,7 @@ def weights_init_zeros(m):
         nn.init.zeros_(m.bias.data)
         nn.init.zeros_(m.weight.data)
 
-class My_Model(pl.LightningModule, PredictionSavingMixin):
+class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
     """
     Our autoregressive model definition.
 
@@ -70,7 +70,7 @@ class My_Model(pl.LightningModule, PredictionSavingMixin):
         self.hyper_params = args
         if inference_mode:
             if audio_dim is None or mean_pose_file is None:
-                print("ERROR: Please provide the 'audio_dim' and the 'mean_pose_file' parameters for My_Model when using inference mode!")
+                print("ERROR: Please provide the 'audio_dim' and the 'mean_pose_file' parameters for GesticulatorModel when using inference mode!")
                 exit(-1)
             
             self.audio_dim = audio_dim
@@ -346,7 +346,7 @@ class My_Model(pl.LightningModule, PredictionSavingMixin):
 
         # Sanity check
         if motion_seq is None:
-            print("ERROR: My_Model.forward() returned None!")
+            print("ERROR: GesticulatorModel.forward() returned None!")
             print("Possible causes: corrupt dataset or a problem with the environment.")
             exit(-1)
 
