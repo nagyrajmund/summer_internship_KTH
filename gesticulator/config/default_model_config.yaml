@@ -5,6 +5,7 @@ data_dir:   '../dataset/processed'
 result_dir: '../results'
 run_name:   'last_run'
 # generated_prediction_dir:     # defaults to <result_dir>/<run_name>/generated_gestures/
+# saved_models_dir:     # defaults to <result_dir>/<run_name>/models
 
 # ---- Data processing parameters ----
 sequence_length: 40 # The length of each training sequence 
@@ -31,7 +32,14 @@ vel_coef: 0.6
 dropout: 0.2
 dropout_multiplier: 4.0 # The dropout is multiplied by this factor in the conditioning layer
 
+# ---- Parameters for saving model predictions ----
+save_val_predictions_every_n_epoch: 0
+save_train_predictions_every_n_epoch: 0
+saved_prediction_duration_sec: 9
+prediction_save_formats: ["video"] # Can be "bvh_file" and "raw_gesture" too
+
 # ---- Binary flags ---- (simply uncomment them to turn them on) 
+generate_semantic_test_predictions
 # use_pca
 # use_recurrent_speech_enc
 # no_overwrite_warning 
