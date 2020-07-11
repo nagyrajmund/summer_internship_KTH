@@ -65,7 +65,6 @@ def generate_videos(raw_input_folder, output_folder, run_name, data_pipe_dir, st
 
     for epoch in range(1, 10, 2):
         filename = prefix + str(epoch)
-        # TODO (RN): this breaks if epoch > 10
         coords_file_path = os.path.join(raw_input_folder, filename + ".npy")
         if os.path.exists(coords_file_path):
             motion = np.load(coords_file_path)
