@@ -21,7 +21,7 @@ import torch.nn as nn
 import numpy as np
 import pytorch_lightning as pl
 
-# Dataset
+from gesticulator.model.prediction_saving import PredictionSavingMixin
 from gesticulator.data_processing.SGdataset import SpeechGestureDataset, ValidationDataset
 
 warnings.filterwarnings("ignore")
@@ -44,13 +44,16 @@ def weights_init_zeros(m):
         nn.init.zeros_(m.bias.data)
         nn.init.zeros_(m.weight.data)
 
-class My_Model(pl.LightningModule):
+class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
     """
     Our autoregressive model definition.
 
     For details regarding the code structure, please visit the documentation for Pytorch-Lightning: 
         https://pytorch-lightning.readthedocs.io/en/stable/new-project.html
     """
+    data_fps = 20
+  
+    # ----------- Initialization -----------
 
     def __init__(self, args, inference_mode=False, audio_dim=None, mean_pose_file=None):
         """ Constructor.
@@ -67,26 +70,28 @@ class My_Model(pl.LightningModule):
         self.hyper_params = args
         if inference_mode:
             if audio_dim is None or mean_pose_file is None:
-                print("ERROR: Please provide the 'audio_dim' and the 'mean_pose_file' parameters for My_Model when using inference mode!")
+                print("ERROR: Please provide the 'audio_dim' and the 'mean_pose_file' parameters for GesticulatorModel when using inference mode!")
                 exit(-1)
             
             self.audio_dim = audio_dim
             self.mean_pose = np.load(mean_pose_file)
         else:
-            self.create_result_folders()
-
-            # The datasets are loaded here because they contain necessary information for building the layers (namely the audio dimensionality)
+            self.create_result_folder()
+            # The datasets are loaded in this constructor because they contain 
+            # necessary information for building the layers (namely the audio dimensionality)
             self.load_datasets()
             self.audio_dim = self.train_dataset.audio_dim
             self.calculate_mean_pose()
 
         self.construct_layers(args)
         self.init_layers()
+    
+        if not inference_mode:
+            self.init_prediction_saving_params()
 
         self.rnn_is_initialized = False
         self.loss = nn.MSELoss()
         self.teaching_freq = 0
-
     
     def load_datasets(self):
         try:
@@ -102,35 +107,25 @@ class My_Model(pl.LightningModule):
                 print("ERROR: Missing data in the dataset!")
             exit(-1)
     
-    
-    def create_result_folders(self):
-        """Create the 'models', 'val_gest' and 'test_videos' directories within the <results>/<run_name> folder."""
+    def create_result_folder(self):
+        """Create the <results>/<run_name> folder."""
         run_name = self.hyper_params.run_name
         self.save_dir = path.join(self.hyper_params.result_dir, run_name)
 
         # Clear the save directory for this run if it exists
         if path.isdir(self.save_dir):
-            if run_name == 'last_run' or self.hyper_params.suppress_warning:
+            if run_name == 'last_run' or self.hyper_params.no_overwrite_warning:
                 rmtree(self.save_dir)
             else:
                 print(f"WARNING: Result directory '{self.save_dir}' already exists!", end=' ')
                 print("All files in this directory will be deleted!")
-                print("(this warning can be disabled by setting the --suppress_warning parameter True)")
+                print("(this warning can be disabled by setting the --no_overwrite_warning parameter True)")
                 print("\nType 'ok' to clear the directory, and anything else to abort the program.")
 
                 if input() == 'ok':
                     rmtree(self.save_dir)
                 else:
                     exit(-1)
-
-        if self.hyper_params.val_gest_dir is None:
-            self.hyper_params.val_gest_dir = path.join(self.save_dir, 'val_gest')
-        if self.hyper_params.test_vid_dir is None:
-            self.hyper_params.test_vid_dir = path.join(self.save_dir, 'test_videos', 'raw_data')
-        
-        os.makedirs(self.hyper_params.val_gest_dir)
-        os.makedirs(self.hyper_params.test_vid_dir)
-                
     
     def construct_layers(self, args):
         """Construct the layers of the model."""
@@ -199,7 +194,6 @@ class My_Model(pl.LightningModule):
                                                 args.first_l_sz * 2), self.activation,
                                             nn.Dropout(args.dropout * args.dropout_multiplier))
 
-    
     def init_layers(self):
         # Use He initialization for most layers
         self.first_layer.apply(weights_init_he)
@@ -211,16 +205,13 @@ class My_Model(pl.LightningModule):
         # Initialize conditioning with zeros
         self.conditioning_1.apply(weights_init_zeros)
 
-    
     def calculate_mean_pose(self):
         self.mean_pose = np.mean(self.val_dataset.gesture, axis=(0, 1))
         np.save("./utils/mean_pose.npy", self.mean_pose)
 
-    
     def load_mean_pose(self):
         self.mean_pose = np.load("./utils/mean_pose.npy")
 
-    
     def initialize_rnn_hid_state(self):
         """Initialize the hidden state for the RNN."""
       
@@ -228,31 +219,35 @@ class My_Model(pl.LightningModule):
 
         self.rnn_is_initialized = True
 
-
-    def FiLM(self, conditioning, nn_layer, hidden_size, use_conditioning):
-        """
-        Execute FiLM conditioning of the model
-        (see https://distill.pub/2018/feature-wise-transformations/)
-        Args:
-            conditioning:     a vector of conditioning information
-            nn_layer:         input to the FiLM layer
-            hidden_size:      size of the hidden layer to which coniditioning is applied
-            use_conditioning: a flag if we are going to condition or not
-
-        Returns:
-            output:           the conditioned output
-        """
-
-        # no conditioning initially
-        if not use_conditioning:
-            output = nn_layer
-        else:
-            alpha, beta = torch.split(conditioning, (hidden_size, hidden_size), dim=1)
-            output = nn_layer * (alpha+1) + beta
-
-        return output
-
+    def train_dataloader(self):
+        loader = torch.utils.data.DataLoader(
+            dataset=self.train_dataset,
+            batch_size=self.hyper_params.batch_size,
+            shuffle=True)
+            
+        return loader
     
+    def val_dataloader(self):
+        loader = torch.utils.data.DataLoader(
+            dataset=self.val_dataset,
+            batch_size=self.hyper_params.batch_size,
+            shuffle=False)
+
+        return loader
+
+    def test_dataloader(self):
+        loader = torch.utils.data.DataLoader(
+            dataset=self.test_dataset,
+            batch_size=1,
+            shuffle=False)
+
+        return loader
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=self.hyper_params.learning_rate)
+
+    # ----------- Model -----------
+
     def forward(self, audio, text, use_conditioning, motion, use_teacher_forcing=True):
         """
         Generate a sequence of gestures based on a sequence of speech features (audio and text)
@@ -275,15 +270,15 @@ class My_Model(pl.LightningModule):
         if self.hyper_params.use_recurrent_speech_enc and (not self.rnn_is_initialized or motion is None):
             self.initialize_rnn_hid_state()
         # initialize all the previous poses with the mean pose
-        init_poses = np.array([self.mean_pose for it in range(len(audio))])
-        # we have to put these Tensors to the correct device because 
+        init_poses = np.array([self.mean_pose for it in range(audio.shape[0])])
+        # we have to put these Tensors to the same device as the model because 
         # numpy arrays are always on the CPU
         # store the 3 previous poses
         prev_poses = [torch.from_numpy(init_poses).to(audio.device)] * 3
         
         past_context   = self.hyper_params.past_context
         future_context = self.hyper_params.future_context
-        for time_st in range(past_context, len(audio[0]) - future_context):
+        for time_st in range(past_context, audio.shape[1] - future_context):
             # take current audio and text of the speech
             curr_audio = audio[:, time_st - past_context:time_st+future_context]
             curr_text = text[:, time_st-past_context:time_st+future_context]
@@ -351,12 +346,34 @@ class My_Model(pl.LightningModule):
 
         # Sanity check
         if motion_seq is None:
-            print("ERROR: My_Model.forward() returned None!")
+            print("ERROR: GesticulatorModel.forward() returned None!")
             print("Possible causes: corrupt dataset or a problem with the environment.")
             exit(-1)
 
         return motion_seq
 
+    def FiLM(self, conditioning, nn_layer, hidden_size, use_conditioning):
+        """
+        Execute FiLM conditioning of the model
+        (see https://distill.pub/2018/feature-wise-transformations/)
+        Args:
+            conditioning:     a vector of conditioning information
+            nn_layer:         input to the FiLM layer
+            hidden_size:      size of the hidden layer to which coniditioning is applied
+            use_conditioning: a flag if we are going to condition or not
+
+        Returns:
+            output:           the conditioned output
+        """
+
+        # no conditioning initially
+        if not use_conditioning:
+            output = nn_layer
+        else:
+            alpha, beta = torch.split(conditioning, (hidden_size, hidden_size), dim=1)
+            output = nn_layer * (alpha+1) + beta
+
+        return output
 
     def tr_loss(self, y_hat, y):
         """
@@ -376,14 +393,12 @@ class My_Model(pl.LightningModule):
 
         return [self.loss(y_hat, y), vel_loss * self.hyper_params.vel_coef]
 
-
     def val_loss(self, y_hat, y):
         # calculate corresponding speed
         pred_speed = y_hat[1:] - y_hat[:-1]
         actual_speed = y[1:] - y[:-1]
 
         return self.loss(pred_speed, actual_speed)
-
 
     def training_step(self, batch, batch_nb):
         """
@@ -427,12 +442,19 @@ class My_Model(pl.LightningModule):
 
         output = OrderedDict({
             'loss': loss,
-            'log': tqdm_dict
-        })
+            'log': tqdm_dict})
 
         return output
 
-    
+    def training_epoch_end(self, outputs):
+        elapsed_epochs = self.current_epoch - self.last_saved_train_prediction_epoch 
+        
+        if elapsed_epochs >= self.hyper_params.save_train_predictions_every_n_epoch:
+            self.last_saved_train_prediction_epoch = self.current_epoch
+            self.generate_training_predictions()
+
+        return {} # The trainer expects a dictionary
+        
     def validation_step(self, batch, batch_nb):
         speech = batch["audio"]
         text = batch["text"]
@@ -450,31 +472,22 @@ class My_Model(pl.LightningModule):
         logger_logs = {'validation_loss': val_loss}
 
         return {'val_loss': val_loss, 'val_example':predicted_gesture, 'log': logger_logs}
-
-    
-    def validation_end(self, outputs):
+ 
+    def validation_epoch_end(self, outputs):
         """
         This will be called at the end of the validation loop
 
         Args:
             outputs: whatever "validation_step" has returned
         """
+        elapsed_epochs = self.current_epoch - self.last_saved_val_prediction_epoch 
+        
+        if elapsed_epochs >= self.hyper_params.save_val_predictions_every_n_epoch:
+            self.last_saved_val_prediction_epoch = self.current_epoch
+            self.generate_validation_predictions()
+
+
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-
-        # Save resulting gestures without teacher forcing
-        sample_prediction = outputs[0]['val_example'][:3].cpu().detach().numpy()
-
-        if self.hyper_params.use_pca:
-            # apply PCA
-            pca = load('utils/pca_model_12.joblib')
-            sample_gesture = pca.inverse_transform(sample_prediction)
-        else:
-            sample_gesture = sample_prediction
-
-        filename  = f"val_result_ep{self.current_epoch + 1}_raw.npy"
-        save_path = path.join(self.hyper_params.val_gest_dir, filename)
-        np.save(save_path, sample_gesture)
-
         tqdm_dict = {'avg_val_loss': avg_loss}
 
         return {'avg_val_loss': avg_loss, "log": tqdm_dict}
@@ -487,22 +500,18 @@ class My_Model(pl.LightningModule):
         
         return {'test_example': predicted_gesture}
 
-    def test_end(self, outputs):
-        # Generate test gestures
-        self.generate_gestures()
+    def test_epoch_end(self, outputs):
+        if self.hyper_params.generate_semantic_test_predictions:
+            self.generate_semantic_test_predictions()
+        
+        # if self.hyper_params.generate_random_test_predictions:
+        #     self.generate_random_test_predictions()
 
-        # The following lines can be ignored,
-        # this is just a formality
-        sample = outputs[0]['test_example'].mean()
+        test_mean = outputs[0]['test_example'].mean()
+        tqdm_dict = {'test_mean': test_mean}
 
-        tqdm_dict = {'test_mean': sample}
-
-        return {'test_mean': sample, "log": tqdm_dict}
-
-    
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hyper_params.learning_rate)
-
+        return {'test_mean': test_mean, "log": tqdm_dict}
+  
     
     def on_epoch_start(self):
         # Anneal teacher forcing schedule
@@ -511,125 +520,3 @@ class My_Model(pl.LightningModule):
         else:
             self.teaching_freq = max(int(self.teaching_freq/2), 2)
         print("Current no-teacher frequency is: ", self.teaching_freq)
-
-    
-    def train_dataloader(self):
-        loader = torch.utils.data.DataLoader(
-            dataset=self.train_dataset,
-            batch_size=self.hyper_params.batch_size,
-            shuffle=True
-        )
-        return loader
-
-    
-    def val_dataloader(self):
-        loader = torch.utils.data.DataLoader(
-            dataset=self.val_dataset,
-            batch_size=self.hyper_params.batch_size,
-            shuffle=False
-        )
-        return loader
-
-
-    def test_dataloader(self):
-        loader = torch.utils.data.DataLoader(
-            dataset=self.test_dataset,
-            batch_size=1,
-            shuffle=False
-        )
-        return loader
-
-
-    def create_test_gestures(self, st_times, audio_in, text_in, numb_make, numb_skip, prefix):
-        """
-        Make raw gesture data that can be used for generating videos later.
-
-        Args:
-            st_times:   start times
-            audio_in:   audio speech feature vector
-            text_in:    text speech feature vector
-            numb_make:  how many videos should we make
-            numb_skip:  how many indices should we skip
-            prefix:     what should be the prefix of video names
-
-        Returns:
-
-        """
-        # TODO(RN): magic numbers
-        duration = 10 * 20  # how long each sequence is
-        pre = self.hyper_params.past_context  # how many previous frames we need
-        fut = self.hyper_params.future_context  # how many future frames we need
-
-        pca = load('utils/pca_model_12.joblib')
-
-        # Go over all the gestures
-        for ind in range(numb_make):
-
-            # get time stamps for the given segment
-            start = int(st_times[ind] * 20) - pre  # 20fps
-            end = start + pre + duration + fut   # 20fps
-
-            audio = audio_in[start:end].unsqueeze(0) # Add extra 'batch' dimension
-            text = text_in[start:end].unsqueeze(0)
-
-
-            if self.hyper_params.use_pca:
-                motion_pca = self.forward(audio, text, use_conditioning=True, motion=None)
-                gestures = pca.inverse_transform(motion_pca)
-            else:
-                gestures = self.forward(audio, text, use_conditioning=True, motion=None)
-
-            filename = prefix + str(ind + numb_skip + 1).zfill(3) + ".npy"
-            save_path = path.join(self.hyper_params.test_vid_dir, filename)
-
-            np.save(save_path, gestures.detach().cpu().numpy())
-
-
-    def generate_gestures(self):
-        """
-        Generate raw data that can be used for generating videos, for all the test segments.
-        The videos can be generated by the 'generate_videos.py' script.
-        """
-
-        print("Generating gestures ...")
-
-        # We have to manually put the tensors on the correct device because Tensors that were constructed with
-        # from_numpy() share the memory with the numpy arrays -> if the array is on the cpu, the Tensor will be too
-        # HACK: --gpus has a weird behaviour: it doesn't seem well-defined whether '--gpus 1' means "use 1 GPU" or "use GPU #1"
-        #       So we just use the device of the model's weights instead
-        device = self.encode_speech[0].weight.device
-        Tensor_from_file = lambda fname : torch.as_tensor(torch.from_numpy(
-                                                              np.load(path.join(self.hyper_params.data_dir, fname))), 
-                                                          device=device).float()
-        # read data
-        speech1 = Tensor_from_file('test_inputs/X_test_NaturalTalking_04.npy')
-        text1   = Tensor_from_file('test_inputs/T_test_NaturalTalking_04.npy')
-        # upsample text to get the same sampling rate as the audio
-        cols = np.linspace(0, text1.shape[0], endpoint=False, num=text1.shape[0] * 2, dtype=int)
-        text1 = text1[cols, :]
-        speech2 = Tensor_from_file('test_inputs/X_test_NaturalTalking_05.npy')
-        text2   = Tensor_from_file('test_inputs/T_test_NaturalTalking_05.npy')
-
-        # upsample text to get the same sampling rate as the audio
-        cols = np.linspace(0, text2.shape[0], endpoint=False, num=text2.shape[0] * 2, dtype=int)
-        text2 = text2[cols, :]
-
-        # exact times of our test segments
-        rand_st_times_1 = [5.5, 20.8, 45.6, 66, 86.3, 106.5, 120.4, 163.7, 180.8, 242.3, 283.5,
-                           300.8, 330.8, 349.6, 377]
-        rand_st_times_2 = [30, 42, 102, 140, 179, 205, 234, 253, 329, 345, 384, 402, 419, 437, 450]
-
-        sem_st_times_1 = [55, 150, 215, 258, 320, 520, 531]
-        sem_st_times_2 = [15, 53, 74, 91, 118, 127, 157, 168, 193, 220, 270, 283, 300]
-
-        # first half of random sequences
-        self.create_test_gestures(rand_st_times_1, speech1, text1, 15, 0, "test_rand")
-
-        # second part of random gestures
-        self.create_test_gestures(rand_st_times_2, speech2, text2, 15, 15, "test_rand")
-
-        # first part of semantic gestures
-        self.create_test_gestures(sem_st_times_1, speech1, text1, 7, 0, "test_seman")
-
-        # second part of semantic gestures
-        self.create_test_gestures(sem_st_times_2, speech2, text2, 13, 7, "test_seman")

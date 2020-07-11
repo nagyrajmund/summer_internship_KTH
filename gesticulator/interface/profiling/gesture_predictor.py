@@ -6,7 +6,7 @@ from torchnlp.word_to_vector.fast_text import FastText
 
 from gesticulator.data_processing.text_features.parse_json_transcript import encode_json_transcript_with_bert, encode_json_transcript_with_fasttext
 from gesticulator.data_processing import tools
-from gesticulator.model import My_Model
+from gesticulator.model.model import GesticulatorModel
 import torch
 from motion_visualizer.convert2bvh import write_bvh
 
@@ -17,8 +17,8 @@ class GesturePredictor:
     supported_features = ("MFCC", "Pros", "MFCC+Pros", "Spectro", "Spectro+Pros")
     
     def __init__(self, 
-                 model : My_Model, feature_type : str, 
-                 past_context : int = None, future_context : int = None):
+                 model : GesticulatorModel, feature_type : str, 
+                 past_context : int, future_context : int):
         """An interface for generating gestures from a trained model.
 
         Args:
@@ -84,7 +84,7 @@ class GesturePredictor:
             exit(-1)
         
     def _tensor_from_numpy(self, array):
-        """Create a tensor from the given numpy array on the correct device and in the correct format."""
+        """Create a tensor from the given numpy array on the same device as the model and in the correct format."""
         device = self.model.encode_speech[0].weight.device
         tensor = torch.as_tensor(torch.from_numpy(array), device=device).float()
        # Add batch dimension

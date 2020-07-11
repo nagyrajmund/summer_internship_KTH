@@ -25,14 +25,23 @@ For all the scripts which we refer to in this repo description there are several
 
 ## 1. Obtain the data
 - Download the [Trinity Speech-Gesture dataset](https://trinityspeechgesture.scss.tcd.ie/)
-- Transcribe the audio using [Google ASR](https://cloud.google.com/speech-to-text/)
-- Manually correct the transcriptions and add punctuations
+- Either obtain transcriptions by yourself:
+  - Transcribe the audio using Automatic Speech Recognition (ASR), such as [Google ASR](https://cloud.google.com/speech-to-text/)
+  - Manually correct the transcriptions and add punctuations
+- Or obtain already transcribed dataset as a participant of the [GENEA Gesture Generation Challenge](https://genea-workshop.github.io/2020/#gesture-generation-challenge)
 - Place the dataset in the `dataset` folder next to `gesticulator` folder in three subfolders: `speech`, `motion` and `transcript`.
 
 ## 2. Pre-process the data
 ```
 cd gesticulator/data_processing
+
+# encode motion from BVH files into exponensial map representation
+python bvh2features.py
+
+# Split the dataset into training and validation
 python split_dataset.py
+
+# Encode all the features
 python process_dataset.py
 ```
 

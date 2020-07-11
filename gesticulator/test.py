@@ -11,7 +11,7 @@ contact: tarask@kth.se
 import torch
 import numpy as np
 
-from gesticulator.model import My_Model
+from gesticulator.model.model import GesticulatorModel
 from gesticulator.data_processing.SGdataset import SpeechGestureDataset
 
 # Params
@@ -20,12 +20,12 @@ from gesticulator.parameters import parser
 torch.set_default_tensor_type('torch.FloatTensor')
 
 
-def predict(my_model, speech_file, text_file, gesture_file):
+def predict(model, speech_file, text_file, gesture_file):
     """ Predict human gesture based on the speech
 
     Args:
         mean_pose:     mean_pose in the dataset
-        my_model:       model to evaluate
+        model:       model to evaluate
         speech_file:    address to the speech file
         text_file:      address to the text file
         gesture_file:   file to save gestures in
@@ -35,7 +35,7 @@ def predict(my_model, speech_file, text_file, gesture_file):
 
     """
 
-    my_model.eval()
+    model.eval()
 
     test_length = 300
 
@@ -49,13 +49,13 @@ def predict(my_model, speech_file, text_file, gesture_file):
     T_tensor = T_tensor[cols, :]
 
     # create a "batch" and then take the first element of the resulting batch
-    motion_seq = my_model.forward(S_tensor.unsqueeze(0), T_tensor.unsqueeze(0)).squeeze()
+    motion_seq = model.forward(S_tensor.unsqueeze(0), T_tensor.unsqueeze(0)).squeeze()
 
     # detach
     gestures_norm = np.array(motion_seq.detach().numpy())
 
     # denormalize
-    gestures = gestures_norm * my_model.max_val + my_model.mean_pose[np.newaxis]
+    gestures = gestures_norm * model.max_val + model.mean_pose[np.newaxis]
     print(gestures.shape)
 
     np.save(gesture_file, gestures)
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     mean_pose = np.array([0 for i in range(45)])
     max_val = np.array([0 for i in range(45)])
 
-    the_model =  My_Model(args, mean_pose, max_val)
+    the_model = GesticulatorModel(args, mean_pose, max_val)
     the_model.load_state_dict(torch.load(args.model_file))
 
     train_dataset = SpeechGestureDataset(args.data_dir, train=True, apply_PCA=args.pca)

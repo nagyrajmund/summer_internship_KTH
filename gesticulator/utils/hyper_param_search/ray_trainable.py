@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from gesticulator.model import My_Model
+from gesticulator.model.model import GesticulatorModel
 import ray
 import torch
 from pytorch_lightning import Trainer
@@ -27,7 +27,7 @@ class TrainableTrainer(tune.Trainable):
 
             setattr(self.hparams, key, val)
 
-        self.model = My_Model(self.hparams)
+        self.model = GesticulatorModel(self.hparams)
 
         checkpoint_callback = ModelCheckpoint(
             filepath=os.path.join(self.logdir, "checkpoint"),
