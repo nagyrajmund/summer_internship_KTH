@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from gesticulator.model import GesticulatorModel
+from gesticulator.model.model import GesticulatorModel
 import ray
 import torch
 from pytorch_lightning import Trainer

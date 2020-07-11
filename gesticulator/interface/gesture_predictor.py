@@ -5,7 +5,7 @@ from bert_embedding import BertEmbedding
 
 from gesticulator.data_processing.text_features.parse_json_transcript import encode_json_transcript
 from gesticulator.data_processing import tools
-from gesticulator.model import GesticulatorModel
+from gesticulator.model.model import GesticulatorModel
 import torch
 from motion_visualizer.convert2bvh import write_bvh
 

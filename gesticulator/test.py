@@ -11,7 +11,7 @@ contact: tarask@kth.se
 import torch
 import numpy as np
 
-from gesticulator.model import GesticulatorModel
+from gesticulator.model.model import GesticulatorModel
 from gesticulator.data_processing.SGdataset import SpeechGestureDataset
 
 # Params

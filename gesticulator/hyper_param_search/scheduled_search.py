@@ -4,7 +4,7 @@ from argparse import ArgumentParser, Namespace
 import numpy as np
 import torch
 
-from gesticulator.model import GesticulatorModel
+from gesticulator.model.model import GesticulatorModel
 from pytorch_lightning import Trainer
 from test_tube import HyperOptArgumentParser
 from ray import tune
@@ -110,7 +110,6 @@ if __name__ == "__main__":
             "future_context": hyperparams.future_context,
             "use_pca": hyperparams.use_pca,
             "recurrent_speech_enc": hyperparams.recurrent_speech_enc,
-            "val_gest_dir": hyperparams.val_gest_dir,
             "audio_dim": hyperparams.audio_dim,
             "text_context": hyperparams.text_context,
             "text_embedding": hyperparams.text_embedding,

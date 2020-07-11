@@ -5,7 +5,7 @@ import numpy as np
 import torch
 
 from config.model_config import construct_model_config_parser
-from gesticulator.model import GesticulatorModel
+from gesticulator.model.model import GesticulatorModel
 from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TensorBoardLogger
 
