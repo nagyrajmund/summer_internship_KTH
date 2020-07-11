@@ -5,7 +5,7 @@ import numpy as np
 
 import ray
 import torch
-from gesticulator.model import My_Model
+from gesticulator.model import GesticulatorModel
 from ray import tune
 from ray.tune import track
 from gesticulator.hyper_param_search.ray_trainable import TrainableTrainer, MyEarlyStopping
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     parent_parser.add_argument("--gpus", default=[0, 1, 2, 3], help="how many gpus")
     parent_parser.add_argument("--dev_test", action="store_true")
 
-    parser = My_Model.add_model_specific_args(parent_parser)
+    parser = GesticulatorModel.add_model_specific_args(parent_parser)
     hyperparams = parser.parse_args()
 
     MAX_ITERATIONS = 12

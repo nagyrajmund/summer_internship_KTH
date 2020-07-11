@@ -5,7 +5,7 @@ import numpy as np
 import torch
 
 from config.model_config import construct_model_config_parser
-from gesticulator.model import My_Model
+from gesticulator.model import GesticulatorModel
 from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TensorBoardLogger
 
@@ -16,7 +16,7 @@ torch.manual_seed(SEED)
 np.random.seed(SEED)
 
 def main(hparams):
-    model = My_Model(hparams)
+    model = GesticulatorModel(hparams)
     logger = create_logger(model.save_dir)
 
     trainer = Trainer.from_argparse_args(hparams, logger=logger)
