@@ -86,7 +86,7 @@ class ValidationDataset(Dataset):
         
         start = int(self.start_times[idx] * 20) # 20fps
         end = int(self.end_times[idx] * 20)  # 20fps
-
+        # TODO: hard-coded context lengths!
         audio = self.audio[start-10:end+20]
         text = self.text[start-10:end+20]
 

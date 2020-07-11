@@ -1,40 +1,40 @@
-# For detailed information regarding these parameters, see 'model_config.py'.
+# For detailed information regarding these parameters, see 'model_config.py'
 
 # ---- Data directories ----
 data_dir:   '../dataset/processed'
 result_dir: '../results'
 run_name:   'last_run'
-# saved_models_dir: # defaults to <result_dir>/<run_name>/models
-# val_gest_dir:     # defaults to <result_dir>/<run_name>/val_gest
-# test_vid_dir:     # defaults to <result_dir>/<run_name>/test_videos/raw_data
+# generated_prediction_dir:     # defaults to <result_dir>/<run_name>/generated_gestures/
 
 # ---- Data processing parameters ----
 sequence_length: 40 # The length of each training sequence 
-past_context:    10 # The number of past speech frames to use as context during prediction
-future_context:  20 # The number of future speech frames to use as context during prediction
-text_context:    10 # The number of future text frames to use for generating gestures
+past_context: 10 # The number of past speech frames to use as context during prediction
+future_context: 20 # The number of future speech frames to use as context during prediction
+text_context: 10 # The number of future text frames to use for generating gestures
 
 # ---- Network architecture ----
-text_embedding: 'BERT' # Or 'FastText'!
-activation:     'TanH'
-n_layers:       1
-first_l_sz:     256
-second_l_sz:    512
-third_l_sz:     384
-n_prev_poses:   3 # For autoregression
+text_embedding: 'BERT' # Or 'FastText'
+activation: 'TanH'
+n_layers: 1
+first_l_sz: 256
+second_l_sz: 512
+third_l_sz: 384
+n_prev_poses: 3 # For autoregression
 speech_enc_frame_dim: 124
-full_speech_enc_dim:  612
+full_speech_enc_dim: 612
 
 # ---- Training parameters ----
-batch_size:    64
+batch_size: 64
 learning_rate: 0.0001
-dropout:       0.2
-vel_coef:      0.6 # The training loss is MSE(prediction, original) + vel_coef * MSE(velocity_pred, velocity_orig)
+# The training loss is MSE(motion_pred, motion_orig) + vel_coef * MSE(velocity_pred, velocity_orig)
+vel_coef: 0.6 
+dropout: 0.2
+dropout_multiplier: 4.0 # The dropout is multiplied by this factor in the conditioning layer
 
 # ---- Binary flags ---- (simply uncomment them to turn them on) 
 # use_pca
 # use_recurrent_speech_enc
-# suppress_warning 
+# no_overwrite_warning 
 
-# If 'suppress_warning' (above) is set, and the given <run_name> directory
+# If 'no_overwrite_warning' (above) is set, and the given <run_name> directory
 # already exists, it will be cleared without displaying any warnings
