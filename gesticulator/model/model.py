@@ -21,7 +21,7 @@ import torch.nn as nn
 import numpy as np
 import pytorch_lightning as pl
 
-from gesticulator.prediction_saving import PredictionSavingMixin
+from gesticulator.model.prediction_saving import PredictionSavingMixin
 from gesticulator.data_processing.SGdataset import SpeechGestureDataset, ValidationDataset
 
 warnings.filterwarnings("ignore")

@@ -5,7 +5,7 @@ import numpy as np
 
 import ray
 import torch
-from gesticulator.model import GesticulatorModel
+from gesticulator.model.model import GesticulatorModel
 from ray import tune
 from ray.tune import track
 from gesticulator.hyper_param_search.ray_trainable import TrainableTrainer, MyEarlyStopping
