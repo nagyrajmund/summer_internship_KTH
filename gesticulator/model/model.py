@@ -385,13 +385,18 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         Returns:
             The total loss: a sum of MSE error and velocity penalty
         """
-
-        # calculate corresponding speed
+        # The motion loss measures the difference between the positions
+        motion_loss = self.loss(y_hat, y)
+        
+        # The velocity loss measures the difference between the velocities
         pred_speed = y_hat[1:] - y_hat[:-1]
         actual_speed = y[1:] - y[:-1]
         vel_loss = self.loss(pred_speed, actual_speed)
 
-        return [self.loss(y_hat, y), vel_loss * self.hyper_params.vel_coef]
+        total_loss = motion_loss + vel_loss * self.hyper_params.vel_coef
+
+        # Return the motion loss and the velocity loss as well for logging purposes
+        return [total_loss, motion_loss, vel_loss]
 
     def val_loss(self, y_hat, y):
         # calculate corresponding speed
@@ -428,32 +433,31 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         true_gesture = true_gesture[:,  
                        self.hyper_params.past_context:-self.hyper_params.future_context]
         
-        # Get training loss
-        mse_loss, vel_loss = self.tr_loss(predicted_gesture, true_gesture)
-        loss = mse_loss + vel_loss
-
-        loss_val = loss.unsqueeze(0)
-        mse_loss_val = mse_loss.unsqueeze(0)
-        vel_loss_val = vel_loss.unsqueeze(0)
-
-        tqdm_dict = {"train_loss": loss_val,
-                      "mse_loss_val": mse_loss_val,
-                      "cont_loss_val": vel_loss_val}
+        # Get the training loss (the motion and velocity terms are only for logging)
+        total_loss, motion_loss, vel_loss = self.tr_loss(predicted_gesture, true_gesture)
+    
+        tqdm_dict = {"train_total_loss": total_loss.unsqueeze(0),
+                     "train_motion_loss": motion_loss.unsqueeze(0),
+                     "train_vel_loss": vel_loss.unsqueeze(0)}
 
         output = OrderedDict({
-            'loss': loss,
+            'loss': total_loss,
             'log': tqdm_dict})
 
         return output
 
     def training_epoch_end(self, outputs):
         elapsed_epochs = self.current_epoch - self.last_saved_train_prediction_epoch 
+        saving_frequency = self.hyper_params.save_train_predictions_every_n_epoch
         
-        if elapsed_epochs >= self.hyper_params.save_train_predictions_every_n_epoch:
+        if self.save_train_predictions and elapsed_epochs >= saving_frequency:
             self.last_saved_train_prediction_epoch = self.current_epoch
             self.generate_training_predictions()
 
-        return {} # The trainer expects a dictionary
+        avg_loss = torch.stack([ x['log']['train_vel_loss'] for x in outputs ]).mean()
+        tqdm_dict = {'avg_train_vel_loss': avg_loss}
+
+        return {'avg_train_vel_loss': avg_loss, "log": tqdm_dict}
         
     def validation_step(self, batch, batch_nb):
         speech = batch["audio"]
@@ -461,7 +465,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         true_gesture = batch["output"]
 
         # Text on validation sequences without teacher forcing
-        predicted_gesture = self.forward(speech, text, use_conditioning=True, motion = None, use_teacher_forcing=False)
+        predicted_gesture = self.forward(speech, text, use_conditioning=True, motion=None, use_teacher_forcing=False)
 
         # remove last frame which had no future info
         true_gesture = true_gesture[:,
@@ -469,9 +473,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
 
         val_loss = self.val_loss(predicted_gesture, true_gesture)
 
-        logger_logs = {'validation_loss': val_loss}
-
-        return {'val_loss': val_loss, 'val_example':predicted_gesture, 'log': logger_logs}
+        return {'val_loss': val_loss, 'val_example':predicted_gesture}
  
     def validation_epoch_end(self, outputs):
         """
@@ -481,16 +483,16 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
             outputs: whatever "validation_step" has returned
         """
         elapsed_epochs = self.current_epoch - self.last_saved_val_prediction_epoch 
-        
-        if elapsed_epochs >= self.hyper_params.save_val_predictions_every_n_epoch:
+        saving_frequency = self.hyper_params.save_val_predictions_every_n_epoch
+        if self.save_val_predictions and elapsed_epochs >= saving_frequency:
             self.last_saved_val_prediction_epoch = self.current_epoch
             self.generate_validation_predictions()
 
 
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        tqdm_dict = {'avg_val_loss': avg_loss}
+        tqdm_dict = {'avg_val_vel_loss': avg_loss}
 
-        return {'avg_val_loss': avg_loss, "log": tqdm_dict}
+        return {'avg_val_vel_loss': avg_loss, "log": tqdm_dict}
 
     def test_step(self, batch, batch_nb):
         speech = batch["audio"]

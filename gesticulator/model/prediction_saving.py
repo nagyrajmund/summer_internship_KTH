@@ -16,25 +16,32 @@ class PredictionSavingMixin(ABC):
     loss function doesn't capture it that well.
     """
     def init_prediction_saving_params(self):
-        """Create the input data and the output directories."""
-        if self.hyper_params.generated_predictions_dir is None:
-            self.hyper_params.generated_predictions_dir = path.join(self.save_dir, "generated_predictions")
-        
+        """Load the input data, create the output directories and the necessary parameters."""
+       
         # Convert the prediction durations to frames
         self.hyper_params.saved_prediction_duration_frames = \
             self.hyper_params.past_context \
             + self.hyper_params.future_context \
             + self.data_fps * self.hyper_params.saved_prediction_duration_sec
         
+
+        if self.hyper_params.generated_predictions_dir is None:
+            self.hyper_params.generated_predictions_dir = path.join(self.save_dir, "generated_predictions")
        
         # Check in which phases is the prediction generation enabled 
         enabled_phases = []
 
+        self.last_saved_train_prediction_epoch = 0
+        self.last_saved_val_prediction_epoch = 0
+        # NOTE: testing has no epochs 
+        
+        self.save_train_predictions = False
+        self.save_val_predictions = False
+        
         # Training
         if self.hyper_params.save_train_predictions_every_n_epoch > 0:
             enabled_phases.append("training")
-
-            self.last_saved_train_prediction_epoch = -1
+            self.save_train_predictions = True
             # Load the first training sequence as input
             self.train_input = \
                 self.load_train_or_val_input(self.train_dataset[0])
@@ -42,9 +49,7 @@ class PredictionSavingMixin(ABC):
         # Validation
         if self.hyper_params.save_val_predictions_every_n_epoch > 0:
             enabled_phases.append("validation")
-
-            self.last_saved_val_prediction_epoch = -1
-
+            self.save_val_predictions = True
             # Load the first validation sequence as input
             # NOTE: test_dataset contains predefined validation sequences,
             #       so we don't touch the actual test data here!
