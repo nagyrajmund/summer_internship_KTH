@@ -57,12 +57,14 @@ class PredictionSavingMixin(ABC):
                 self.load_train_or_val_input(self.test_dataset[5]) # TODO magic number (longest validation sequence)        
         
         # Testing
-        if self.hyper_params.generate_semantic_test_predictions:
+        if self.hyper_params.generate_semantic_test_predictions \
+        or self.hyper_params.generate_random_test_predictions:
             enabled_phases.append("test")
-            self.semantic_test_inputs = {
-                '04': self.load_semantic_test_input('04'),
-                '05': self.load_semantic_test_input('05')}
 
+            self.test_prediction_inputs = {
+                '04': self.load_test_prediction_input('04'),
+                '05': self.load_test_prediction_input('05')}
+        
         # Create the output directories
         for phase in enabled_phases: 
             for save_format in self.hyper_params.prediction_save_formats:
@@ -99,28 +101,42 @@ class PredictionSavingMixin(ABC):
       
         self.save_prediction(predicted_gestures, "validation")
 
-    def generate_semantic_test_predictions(self):
-        """Generate gestures for the 7 chosen semantic test inputs, and save the results."""
-        print("\nGeneratic semantic test gestures:", flush=True)
-        # The start times of the semantic test segments in the paper
-        semantic_start_times = {
-            # These correspond to the NaturalTalking_04/05 files
-            '04': [55, 150, 215, 258, 320, 520, 531], 
-            '05': [15, 53, 74, 91, 118, 127, 157, 168, 193, 220, 270, 283, 300] }
+    def generate_test_predictions(self, mode):
+        """
+        Generate gestures either for the semantic or the random test input
+        segments (depending on the mode argument), and save the results.
+        """
+        if mode == 'semantic':
+            # The start times of the semantic test segments in the paper
+            segment_start_times = {
+                # These correspond to the NaturalTalking_04/05 files
+                '04': [55, 150, 215, 258, 320, 520, 531], 
+                '05': [15, 53, 74, 91, 118, 127, 157, 168, 193, 220, 270, 283, 300] }
+        elif mode == 'random':
+            # Random segment start times from the paper
+            segment_start_times = {
+                '04': [ 5.5, 20.8, 45.6, 66, 86.3, 106.5, 120.4, 163.7,
+                        180.8, 242.3, 283.5, 300.8, 330.8, 349.6, 377 ],
+                '05': [ 30, 42, 102, 140, 179, 205, 234, 253, 329, 345,
+                        384, 402, 419, 437, 450 ] }
+        else:
+            print(f"Unknown test prediction mode '{mode}'! Possible values: 'semantic' or 'random'.")
+            exit(-1)
+            
+        print(f"\nGenerating {mode} test gestures:", flush=True)
 
         # TODO: magic number below
         duration_in_frames = 10 * self.data_fps \
                              + self.hyper_params.past_context \
                              + self.hyper_params.future_context 
 
-        for file_num in semantic_start_times.keys():
-            audio_full = self.semantic_test_inputs[file_num]['audio']
-            text_full = self.semantic_test_inputs[file_num]['text']
+        for file_num in segment_start_times.keys():
+            audio_full = self.test_prediction_inputs[file_num]['audio']
+            text_full = self.test_prediction_inputs[file_num]['text']
 
-            for i, start_time in enumerate(semantic_start_times[file_num]):
-                start_frame = start_time * self.data_fps - self.hyper_params.past_context
-                end_frame = start_frame + duration_in_frames 
-                
+            for i, start_time in enumerate(segment_start_times[file_num]):
+                start_frame = int(start_time * self.data_fps - self.hyper_params.past_context)
+                end_frame = start_frame + duration_in_frames
                 # Crop and add the batch dimension
                 audio = audio_full[start_frame:end_frame].unsqueeze(0) 
                 text = text_full[start_frame:end_frame].unsqueeze(0)
@@ -133,7 +149,7 @@ class PredictionSavingMixin(ABC):
                     pca = load('utils/pca_model_12.joblib')
                     predicted_gestures = pca.inverse_transform(predicted_gestures)
         
-                filename = f"test_seman_file_{file_num}_segment_" + str(i+1).zfill(2)
+                filename = f"input_{file_num}_{mode}_segment_" + str(i+1).zfill(2)
                 print("\t-", filename)
                 
                 self.save_prediction(predicted_gestures, "test", filename)
@@ -159,15 +175,15 @@ class PredictionSavingMixin(ABC):
 
         return {'audio': audio, 'text': text}
 
-    def load_semantic_test_input(self, num):
+    def load_test_prediction_input(self, num):
         """Load a sequence from the test inputs for semantic test predictions."""
-        audio = self.load_semantic_test_file('audio', num)
-        text = self.load_semantic_test_file('text', num)
+        audio = self.load_test_file('audio', num)
+        text = self.load_test_file('text', num)
         text = self.upsample_text(text)
 
         return {'audio': audio, 'text': text }
 
-    def load_semantic_test_file(self, file_type, num):
+    def load_test_file(self, file_type, num):
         """Load the tensor that will be used for generating semantic test predictions."""
         if file_type == 'audio':
             filename = f"X_test_NaturalTalking_{num}.npy"
