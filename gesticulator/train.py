@@ -3,6 +3,7 @@ import sys
 
 import numpy as np
 import torch
+from argparse import ArgumentParser
 
 from config.model_config import construct_model_config_parser
 from gesticulator.model.model import GesticulatorModel
@@ -51,10 +52,6 @@ def add_training_script_arguments(parser):
 if __name__ == '__main__':
     # Model parameters are added here
     parser = construct_model_config_parser()
-    
-    # Add trainer-specific args e.g. number of epochs
-    # (see the Pytorch-Lightning documentation for Trainer for details)
-    parser = Trainer.add_argparse_args(parser)
     
     # Add training-script specific parameters
     parser = add_training_script_arguments(parser) 
