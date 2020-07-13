@@ -85,7 +85,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
 
         self.construct_layers(args)
         self.init_layers()
-    
+        
         if not inference_mode:
             self.init_prediction_saving_params()
 
@@ -449,7 +449,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
     def training_epoch_end(self, outputs):
         elapsed_epochs = self.current_epoch - self.last_saved_train_prediction_epoch 
         
-        if elapsed_epochs >= self.hyper_params.save_train_predictions_every_n_epoch:
+        if self.save_train_predictions and elapsed_epochs >= self.hyper_params.save_train_predictions_every_n_epoch:
             self.last_saved_train_prediction_epoch = self.current_epoch
             self.generate_training_predictions()
 
@@ -482,7 +482,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         """
         elapsed_epochs = self.current_epoch - self.last_saved_val_prediction_epoch 
         
-        if elapsed_epochs >= self.hyper_params.save_val_predictions_every_n_epoch:
+        if self.save_val_predictions and elapsed_epochs >= self.hyper_params.save_val_predictions_every_n_epoch:
             self.last_saved_val_prediction_epoch = self.current_epoch
             self.generate_validation_predictions()
 

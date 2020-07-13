@@ -16,25 +16,30 @@ class PredictionSavingMixin(ABC):
     loss function doesn't capture it that well.
     """
     def init_prediction_saving_params(self):
-        """Create the input data and the output directories."""
-        if self.hyper_params.generated_predictions_dir is None:
-            self.hyper_params.generated_predictions_dir = path.join(self.save_dir, "generated_predictions")
-        
+        """Load the input data, create the output directories and the necessary parameters."""
         # Convert the prediction durations to frames
         self.hyper_params.saved_prediction_duration_frames = \
             self.hyper_params.past_context \
             + self.hyper_params.future_context \
             + self.data_fps * self.hyper_params.saved_prediction_duration_sec
         
-       
-        # Check in which phases is the prediction generation enabled 
+        if self.hyper_params.generated_predictions_dir is None:
+            self.hyper_params.generated_predictions_dir = path.join(self.save_dir, "generated_predictions")
+        
+        # Check which phases is the prediction generation enabled in
         enabled_phases = []
+        
+        self.last_saved_train_prediction_epoch = 0
+        self.last_saved_val_prediction_epoch = 0
+        # NOTE: testing has no epochs 
 
+        self.save_train_predictions = False
+        self.save_val_predictions = False
         # Training
         if self.hyper_params.save_train_predictions_every_n_epoch > 0:
             enabled_phases.append("training")
 
-            self.last_saved_train_prediction_epoch = -1
+            self.save_train_predictions = True
             # Load the first training sequence as input
             self.train_input = \
                 self.load_train_or_val_input(self.train_dataset[0])
@@ -43,8 +48,7 @@ class PredictionSavingMixin(ABC):
         if self.hyper_params.save_val_predictions_every_n_epoch > 0:
             enabled_phases.append("validation")
 
-            self.last_saved_val_prediction_epoch = -1
-
+            self.save_val_predictions = True
             # Load the first validation sequence as input
             # NOTE: test_dataset contains predefined validation sequences,
             #       so we don't touch the actual test data here!
@@ -55,8 +59,9 @@ class PredictionSavingMixin(ABC):
         # Testing
         if self.hyper_params.generate_semantic_test_predictions:
             enabled_phases.append("test")
-            self.semantic_test_input = \
-                self.load_semantic_test_input()
+            self.semantic_test_inputs = {
+                '04': self.load_semantic_test_input('04'),
+                '05': self.load_semantic_test_input('05')}
 
         # Create the output directories
         for phase in enabled_phases: 
@@ -83,8 +88,8 @@ class PredictionSavingMixin(ABC):
     def generate_validation_predictions(self):
         """Predict gestures for the validation input and save the results."""
         predicted_gestures = self.forward(
-            audio = self.val_input[0],
-            text = self.val_input[1],
+            audio = self.val_input['audio'],
+            text = self.val_input['text'],
             use_conditioning=True, 
             motion=None).cpu().detach().numpy()
 
@@ -97,36 +102,42 @@ class PredictionSavingMixin(ABC):
     def generate_semantic_test_predictions(self):
         """Generate gestures for the 7 chosen semantic test inputs, and save the results."""
         print("\nGeneratic semantic test gestures:", flush=True)
-        
-        audio_full, text_full = self.semantic_test_input
-        
-        semantic_start_times = [55, 150, 215, 258, 320, 520, 531]
+        # The start times of the semantic test segments in the paper
+        semantic_start_times = {
+            # These correspond to the NaturalTalking_04/05 files
+            '04': [55, 150, 215, 258, 320, 520, 531], 
+            '05': [15, 53, 74, 91, 118, 127, 157, 168, 193, 220, 270, 283, 300] }
+
         # TODO: magic number below
         duration_in_frames = 10 * self.data_fps \
                              + self.hyper_params.past_context \
                              + self.hyper_params.future_context 
 
-        for i, start_time in enumerate(semantic_start_times):
-            start_frame = start_time * self.data_fps - self.hyper_params.past_context
-            end_frame = start_frame + duration_in_frames 
-            
-            # Add the batch dimension            
-            audio = audio_full[start_frame:end_frame].unsqueeze(0)
-            text = text_full[start_frame:end_frame].unsqueeze(0)
+        for file_num in semantic_start_times.keys():
+            audio_full = self.semantic_test_inputs[file_num]['audio']
+            text_full = self.semantic_test_inputs[file_num]['text']
 
-            predicted_gestures = self.forward(
-                audio, text, use_conditioning=True, 
-                motion=None).cpu().detach().numpy()
+            for i, start_time in enumerate(semantic_start_times[file_num]):
+                start_frame = start_time * self.data_fps - self.hyper_params.past_context
+                end_frame = start_frame + duration_in_frames 
+                
+                # Crop and add the batch dimension
+                audio = audio_full[start_frame:end_frame].unsqueeze(0) 
+                text = text_full[start_frame:end_frame].unsqueeze(0)
 
-            if self.hyper_params.use_pca:
-                pca = load('utils/pca_model_12.joblib')
-                predicted_gestures = pca.inverse_transform(predicted_gestures)          
-    
-            filename = f"test_seman_00{i+1}"
-            print("\t-", filename)
-            
-            self.save_prediction(predicted_gestures, "test", filename)
+                predicted_gestures = self.forward(
+                    audio, text, use_conditioning=True, 
+                    motion=None).cpu().detach().numpy()
+
+                if self.hyper_params.use_pca:
+                    pca = load('utils/pca_model_12.joblib')
+                    predicted_gestures = pca.inverse_transform(predicted_gestures)
         
+                filename = f"test_seman_file_{file_num}_segment_" + str(i+1).zfill(2)
+                print("\t-", filename)
+                
+                self.save_prediction(predicted_gestures, "test", filename)
+            
         print("Done!", flush=True)
 
     # ---- Private functions ----
@@ -138,7 +149,7 @@ class PredictionSavingMixin(ABC):
         """
         # We have to put the data on the same device as the model
         device = self.encode_speech[0].weight.device
-
+        
         audio = torch.as_tensor(input_array['audio'], device=device)
         text = torch.as_tensor(input_array['text'], device=device)
         
@@ -146,23 +157,22 @@ class PredictionSavingMixin(ABC):
         audio = audio[:self.hyper_params.saved_prediction_duration_frames].unsqueeze(0)
         text = text[:self.hyper_params.saved_prediction_duration_frames].unsqueeze(0)
 
-        return audio, text
+        return {'audio': audio, 'text': text}
 
-    def load_semantic_test_input(self):
-        """Load the input sequence for semantic test predictions."""
-        audio = self.load_semantic_test_file('audio')
-        text = self.load_semantic_test_file('text')
+    def load_semantic_test_input(self, num):
+        """Load a sequence from the test inputs for semantic test predictions."""
+        audio = self.load_semantic_test_file('audio', num)
+        text = self.load_semantic_test_file('text', num)
         text = self.upsample_text(text)
 
-        return audio, text
+        return {'audio': audio, 'text': text }
 
-    def load_semantic_test_file(self, file_type):
+    def load_semantic_test_file(self, file_type, num):
         """Load the tensor that will be used for generating semantic test predictions."""
-        # TODO hardcoded filename
         if file_type == 'audio':
-            filename = "X_test_NaturalTalking_04.npy"
+            filename = f"X_test_NaturalTalking_{num}.npy"
         elif file_type == 'text':
-            filename = "T_test_NaturalTalking_04.npy"
+            filename = f"T_test_NaturalTalking_{num}.npy"
         else:
             print("ERROR: unknown semantic test input type:", file_type)
             exit(-1)
