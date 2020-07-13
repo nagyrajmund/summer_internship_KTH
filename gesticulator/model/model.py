@@ -502,10 +502,10 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
 
     def test_epoch_end(self, outputs):
         if self.hyper_params.generate_semantic_test_predictions:
-            self.generate_semantic_test_predictions()
+            self.generate_test_predictions(mode='semantic')
         
-        # if self.hyper_params.generate_random_test_predictions:
-        #     self.generate_random_test_predictions()
+        if self.hyper_params.generate_random_test_predictions:
+            self.generate_test_predictions(mode='random')
 
         test_mean = outputs[0]['test_example'].mean()
         tqdm_dict = {'test_mean': test_mean}
