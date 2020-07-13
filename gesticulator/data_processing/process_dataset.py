@@ -108,6 +108,10 @@ def _encode_vectors(audio_filename, gesture_filename, text_filename, embedding_m
 
     # Step 4: Align vector length
     min_len = min(len(input_vectors), len(output_vectors), 2 * len(text_encoding))
+
+    # make sure the length is even
+    if min_len % 2 ==1:
+        min_len -= 1
     input_vectors, output_vectors = tools.shorten(input_vectors, output_vectors, min_len)
     text_encoding = text_encoding[:int(min_len/2)]
 
@@ -224,7 +228,7 @@ def _save_dataset(data_csv, save_dir, embedding_model, dataset_name, args):
     np.save(t_save_path, T)
     np.save(y_save_path, Y)
 
-    print(f"Final dataset sizes:\n  X: {X.shape}\n  Y: {Y.shape}")
+    print(f"Final dataset sizes:\n  X: {X.shape}\n  T: {T.shape}\n  Y: {Y.shape}")
 
 def create_embedding(name):
     if name == "BERT":
