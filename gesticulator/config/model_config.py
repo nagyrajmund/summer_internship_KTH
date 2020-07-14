@@ -43,9 +43,9 @@ def construct_model_config_parser(add_trainer_args = True):
                help='Name of the subdirectory within <results> '
                     'where the results of this run will be saved')
     
-    parser.add('--generated_predictions_dir', default=None,
+    parser.add('--generated_gestures_dir', default=None,
                help="Path to the directory where final test gestures and the predicted validation or training gestures"
-                    " will be saved (default: <results>/<run_name>/generated_predictions")
+                    " will be saved (default: <results>/<run_name>/generated_gestures")
 
     parser.add('--saved_models_dir', '-model_d',  default=None,
                help='Path to the directory where models will be saved '
@@ -120,9 +120,9 @@ def construct_model_config_parser(add_trainer_args = True):
                help='If set, save the learned model\'s predictions on the'
                     'predefined semantic test segments')
     
-#     parser.add('--generate_random_test_predictions', '-save_random_output', action='store_true',
-#                help='If set, save the learned model\'s predictions on the
-#                     'predefined random test segments')
+    parser.add('--generate_random_test_predictions', '-save_random', action='store_true',
+                help='If set, save the learned model\'s predictions on the'
+                     'predefined random test segments')
 
     parser.add('--use_pca', '-pca', action='store_true',
                help='If set, use PCA on the gestures')
