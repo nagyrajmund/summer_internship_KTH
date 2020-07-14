@@ -131,9 +131,9 @@ def main():
 
     parser = argparse.ArgumentParser(
         description='Calculate prediction errors')
-    parser.add_argument('--original', '-o', default='GT',
+    parser.add_argument('--original', '-o', default='original',
                         help='Original gesture directory')
-    parser.add_argument('--predicted', '-p', default='Full_3d',
+    parser.add_argument('--predicted', '-p', default='predicted',
                         help='Predicted gesture directory')
     parser.add_argument('--measure', '-m', default='acceleration',
                         help='Measure to calculate (jerk or acceleration)')
@@ -141,8 +141,8 @@ def main():
                         help='Directory to output the result')
     args = parser.parse_args()
 
-    predicted_dir =  "data/" + args.predicted + "/" # os.path.join(args.predicted, args.gesture)
-    original_dir= "data/" + args.original  + "/"
+    predicted_dir =  os.path.join("data", args.predicted)
+    original_dir = os.path.join("data", args.original)
 
     original_files = sorted(glob.glob(os.path.join(original_dir, '*.npy')))
     predicted_files = sorted(glob.glob(os.path.join(predicted_dir, '*.npy')))
