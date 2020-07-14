@@ -1,5 +1,6 @@
 import os
 from os import path
+from time import sleep
 from abc import ABC
 
 import torch
@@ -23,8 +24,8 @@ class PredictionSavingMixin(ABC):
             + self.hyper_params.future_context \
             + self.data_fps * self.hyper_params.saved_prediction_duration_sec
         
-        if self.hyper_params.generated_predictions_dir is None:
-            self.hyper_params.generated_predictions_dir = path.join(self.save_dir, "generated_predictions")
+        if self.hyper_params.generated_gestures_dir is None:
+            self.hyper_params.generated_gestures_dir = path.join(self.save_dir, "generated_gestures")
         
         # Check which phases is the prediction generation enabled in
         enabled_phases = []
@@ -68,9 +69,17 @@ class PredictionSavingMixin(ABC):
         # Create the output directories
         for phase in enabled_phases: 
             for save_format in self.hyper_params.prediction_save_formats:
-                os.makedirs(path.join(
-                    self.hyper_params.generated_predictions_dir, 
-                    phase, save_format + 's')) # e.g. <results>/<run_name>/generated_predictions/test/videos
+                try:
+                    os.makedirs(path.join(
+                        self.hyper_params.generated_gestures_dir, 
+                        phase, save_format + 's')) # e.g. <results>/<run_name>/generated_gestures/test/videos
+                except:
+                    print("-----------------------------------------------------------------------")
+                    print(f"WARNING: cannot create '{save_format}' directory for saving model outputs.")
+                    print("Perhaps the save formats are duplicated?")
+                    print(f"\t(enabled formats: {self.hyper_params.prediction_save_formats})")
+                    print("-----------------------------------------------------------------------")
+                    sleep(1)
 
     def generate_training_predictions(self):
         """Predict gestures for the training input and save the results."""
@@ -206,7 +215,7 @@ class PredictionSavingMixin(ABC):
 
     def save_prediction(self, gestures, phase, filename = None):
         """
-        Save the given gestures to the <generated_predictions_dir>/'phase' folder 
+        Save the given gestures to the <generated_gestures_dir>/'phase' folder 
         using the formats found in hyper_params.prediction_save_formats.
 
         The possible formats are: BVH file, MP4 video and raw numpy array.
@@ -219,20 +228,33 @@ class PredictionSavingMixin(ABC):
         if filename is None:
             filename = f"epoch_{self.current_epoch + 1}"
         
-        save_paths = self.get_prediction_save_paths(phase, filename)
+        enabled_save_paths, disabled_save_paths = \
+            self.get_prediction_save_paths(phase, filename)
 
         data_pipe = path.join(os.getcwd(), 'utils/data_pipe.sav')
         
+        # The numpy array format is a special case, because  the visualize call
+        # adds additional joints to the it (in the model we only use 15 out of the 46 joints).
+        # This is problematic because with those additional joints, we cannot use the numpy array
+        # anymore for generating videos or for quantitative evaluation.
+        
+        if "raw_gesture" in enabled_save_paths:
+            # Therefore we save the model outputs as they are:
+            np.save(enabled_save_paths["raw_gesture"], gestures)
+            # And use a temporary file for the visualize call
+            disabled_save_paths["raw_gesture"] = "temp.npy"
+
         visualize(
             gestures, 
-            bvh_file = save_paths["bvh"],
-            npy_file = save_paths["npy"],
-            mp4_file = save_paths["mp4"],
+            bvh_file = enabled_save_paths["bvh"] if "bvh" in enabled_save_paths else disabled_save_paths["bvh"],
+            mp4_file = enabled_save_paths["video"] if "video" in enabled_save_paths else disabled_save_paths["video"],
+            npy_file = disabled_save_paths["raw_gesture"], # always a temporary file
             start_t = 0, 
             end_t = self.data_fps * self.hyper_params.saved_prediction_duration_sec,
             data_pipe_dir = data_pipe)
 
-        for temp_file in save_paths["to_delete"]:
+        # Clean up the temporary files
+        for temp_file in disabled_save_paths.values():
             os.remove(temp_file)
 
     def get_prediction_save_paths(self, phase, filename):
@@ -243,52 +265,43 @@ class PredictionSavingMixin(ABC):
             filename:  The filename without the file format extension
         
         Returns:
-            return_dict:  a dictionary with:
-                            - the save paths for each possible format
-                            - a list containing every temporary save path out of those
+            enabled_format_paths:  a dictionary containing the save path for each enabled file format
+            disabled_format_paths:  a dictionary containing the save path for each disabled file format
         """
         is_enabled = \
             lambda fmt : fmt in self.hyper_params.prediction_save_formats
         
         get_persistent_path = \
             lambda subdir, extension : path.join(
-                self.hyper_params.generated_predictions_dir,
+                self.hyper_params.generated_gestures_dir,
                 phase, subdir, filename + extension)
         
         get_temporary_path = \
             lambda extension : path.join(
-                self.hyper_params.generated_predictions_dir,
+                self.hyper_params.generated_gestures_dir,
                 phase, "temp" + extension)
                 
-        temp_filepaths = []
+        enabled_format_paths = {}
+        disabled_format_paths = {}
         # BVH format
         if is_enabled("bvh_file"):
-            bvh_filepath = get_persistent_path("bvh_files", ".bvh")      
+            enabled_format_paths["bvh"] = get_persistent_path("bvh_files", ".bvh")
         else:
-            bvh_filepath = get_temporary_path(".bvh")
-            temp_filepaths.append(bvh_filepath)
+            disabled_format_paths["bvh"] = get_temporary_path(".bvh")
         
         # Raw numpy array format
         if is_enabled("raw_gesture"):
-            npy_filepath = get_persistent_path("raw_gestures", ".npy")      
+            enabled_format_paths["raw_gesture"] = get_persistent_path("raw_gestures", ".npy")      
         else:
-            npy_filepath = get_temporary_path(".npy")
-            temp_filepaths.append(npy_filepath)
+            disabled_format_paths["raw_gesture"] = get_temporary_path(".npy")
 
         # Video format
         if is_enabled("video"):
-            mp4_filepath = get_persistent_path("videos", ".mp4")      
+            enabled_format_paths["video"] = get_persistent_path("videos", ".mp4")      
         else:
-            mp4_filepath = get_temporary_path(".mp4")
-            temp_filepaths.append(mp4_filepath)
-
-        return_dict = {
-            "bvh": bvh_filepath,
-            "npy": npy_filepath,
-            "mp4": mp4_filepath,
-            "to_delete": temp_filepaths }
-
-        return return_dict
+            disabled_format_paths["video"] = get_temporary_path(".mp4")
+        
+        return enabled_format_paths, disabled_format_paths
  
     def upsample_text(self, text):
         """Upsample the given text input with twice the original frequency (so that it matches the audio)."""  
