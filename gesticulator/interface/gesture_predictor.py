@@ -5,7 +5,7 @@ from bert_embedding import BertEmbedding
 
 from gesticulator.data_processing.text_features.parse_json_transcript import encode_json_transcript
 from gesticulator.data_processing import tools
-from gesticulator.model import My_Model
+from gesticulator.model.model import GesticulatorModel
 import torch
 from motion_visualizer.convert2bvh import write_bvh
 
@@ -16,7 +16,7 @@ class GesturePredictor:
     supported_features = ("MFCC", "Pros", "MFCC+Pros", "Spectro", "Spectro+Pros")
     
     def __init__(self, 
-                 model : My_Model, feature_type : str, 
+                 model : GesticulatorModel, feature_type : str, 
                  past_context : int, future_context : int):
         """An interface for generating gestures from a trained model.
 
@@ -68,8 +68,21 @@ class GesturePredictor:
 
     # -------- Private methods --------
 
-    def tensor_from_numpy(self, array):
-        """Create a tensor from the given numpy array on the correct device and in the correct format."""
+    def _create_embedding(self, text_dim):
+        if text_dim == 773:
+            print("Creating bert embedding for GesturePredictor interface" , end=' ')
+            return BertEmbedding(max_seq_length=100, model='bert_12_768_12', 
+                                           dataset_name='book_corpus_wiki_en_cased')
+        elif text_dim == 305:
+            print("Creating FastText embedding for GesturePredictor interface", end=' ')
+            return FastText()
+        else:
+            print(f"ERROR: Unexpected text dimensionality ({model.text_dim})!")
+            print("       Currently supported embeddings are BERT (773 dim.) and FastText (305 dim.).")
+            exit(-1)
+        
+    def _tensor_from_numpy(self, array):
+        """Create a tensor from the given numpy array on the same device as the model and in the correct format."""
         device = self.model.encode_speech[0].weight.device
         tensor = torch.as_tensor(torch.from_numpy(array), device=device).float()
        # Add batch dimension

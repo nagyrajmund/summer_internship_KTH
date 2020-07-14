@@ -132,9 +132,9 @@ def main():
 
     parser = argparse.ArgumentParser(
         description='Calculate histograms of moving distances')
-    parser.add_argument('--original', '-o', default='GT',
+    parser.add_argument('--original', '-o', default='original',
                         help='Original gesture directory')
-    parser.add_argument('--predicted', '-p', default='Full_3d',
+    parser.add_argument('--predicted', '-p', default='predicted',
                         help='Predicted gesture directory')
     parser.add_argument('--width', '-w', type=float, default=0.05,
                         help='Bin width of the histogram')

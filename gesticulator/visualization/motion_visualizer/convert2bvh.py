@@ -4,7 +4,7 @@ import os
 import sys
 
 from pymo.writers import BVHWriter
-from sklearn.externals import joblib
+import joblib
 
 
 def write_bvh(datapipe_file, anim_clip, filename, fps):

@@ -1,4 +1,3 @@
-/dataset/*
-/dataset/README.md
 /results/*
-/gesticulator/lightning_logs/*
+/gesticulator/data_processing/.word_vectors_cache/*
+**/__pycache__/*
