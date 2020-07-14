@@ -45,25 +45,30 @@ python split_dataset.py
 python process_dataset.py
 ```
 
-By default, the model expects the dataset in the `<repository>/dataset/raw` folder, and the processed dataset will be available in the `<repository>/dataset/processed folder`. If your dataset is elsewhere, please provide the correct paths with the `--raw_data_dir` and `--proc_data_dir` command line arguments.
+By default, the model expects the dataset in the `dataset/raw` folder, and the processed dataset will be available in the `dataset/processed folder`. If your dataset is elsewhere, please provide the correct paths with the `--raw_data_dir` and `--proc_data_dir` command line arguments.
 
 ## 3. Learn speech-driven gesture generation model
+In order to train and evaluate the model, run
+
 ```
 cd ..
-python train.py --save_videos_after_testing
+python train.py
 ```
-The results will be available in the `<repository>/results/last_run/` folder, where you will find the saved model and the raw data for generating gesticulation videos, while the Tensorboard logs will be available for all runs in the `gesticulator/lightning_logs` folder.
+
+The model configuration and the training parameters are automatically read from the `config/default_model_config.yaml` file. 
+
+### Notes
+
+The results will be available in the `/results/last_run/` folder, where you will find the Tensorboard logs alongside with the trained model file and the generated output on the semantic test segments (described in the paper).
 
 If the `--run_name <name>` command-line argument is provided, the `results/<name>` folder will be created and the results will be stored there. This can be very useful when you want to keep your logs and outputs for separate runs.
 
-To train the model on the GPU, provide the `--gpus` argument. For details, please [visit this link](https://pytorch-lightning.readthedocs.io/en/0.7.1/trainer.html#gpus).
+To train the model on the GPU, provide the `--gpus` argument. For details regarding training parameters, please [visit this link](https://pytorch-lightning.readthedocs.io/en/0.8.4/trainer.html#gpus).
 
 ## 4. Visualize gestures
-By default, the visualization of the predictions on the test set is stored in the `results/<run_name>/test_videos` folder.
+The gestures generated during training, validation and testing can be found in the `results/<run_name>/generated_gestures` folder. By default, we only store the outputs on the semantic test segments, but other outputs can be saved as well - see the config file for the corresponding parameters.
 
-If the `--save_videos_after_testing` argument is omitted when running `train.py`, then only the raw coordinates will be stored for the vides, in the `results/<run_name>/test_videos/raw_data` folder.
-
-In order to manually generate the the videos from the raw data, run
+In order to manually generate the the videos from the raw coordinates, run 
 
 ```
 cd visualization/aamas20_visualizer
