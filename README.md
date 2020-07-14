@@ -82,7 +82,7 @@ Please check the required arguments by running
 
 ## 5. Quantitative evaluation
 
-For the quantitative evaluation, you may use the scripts in the `gesticulator/obj_evaluation` folder, which 
+For the quantitative evaluation (velocity histograms and jerk), you may use the scripts in the `gesticulator/obj_evaluation` folder.
 
 ## Citing
 
