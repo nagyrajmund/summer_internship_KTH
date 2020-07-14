@@ -6,32 +6,14 @@ This directory provides the scripts for quantitative evaluation of our gesture g
 - Histogram of Moving Distance (HMD, for velocity/acceleration)
 
 ## Data preparation 
-  1. Use `generate_videos.py` script from the `visualization/aamas20visualizer` folder to convert first the training data and then the gestures produced by the network into 3D coordinates. You would need to set `raw_data_dir` and `proc_data_dir` accordingly to where your data is stored. As a result the data will be converted into 3D, bvh and mp4 and saved in `proc_data_dir`. For the numerical evaluation you will need 3D data only.
-
-  2. Put the resulting 3D coordinates in the `data` subfolder of the `obj_evaluation` folder.
-
-## Directory organization
-
-We assume original/predicted gesture data are stored as follows:
-
-```
--- obj_evaluation/
-      |-- calc_distance.py
-      |-- calc_jerk.py
-      |-- data/
-           |-- original/
-                  |-- rand_1_3d.npy, rand_2_3d.npy, ...
-           |-- predicted/
-                  |-- rand_1_3d.npy, rand_2_3d.npy, ...
-```
+  - Move the 3D coordinates of the generated gestures to the `data/predicted` folder. With the default config, `train.py` generates those coordinates in the `results/<run_name>/generated_gestures/test/3d_coordinates/` folder.
+  - If the 3D coordinates were not saved with the training script, but the raw gestures were, then they can be generated using the `gesticulator/visualization/motion_visualizer/generate_videos.py` script (the coordinates will be available in the `results/<run_name>/generated_gestures/test/manually_generated_videos/` folder. 
 
 ## Run evaluations
 
  `calc_jerk.py`, and `calc_distance.py` support different quantitative measures, described below.
 
-`--original` or `-o` option specifies the directory for original data, while `--predicted` or `-p` sets the directory to the predicted data. Both the directories are expected to be subdirectories of `data`
-
-```
+The `--original` or `-o` option specifies the directory for original data, while the `--predicted` or `-p` sets the directory to the predicted data. Both the directories are expected to be subdirectories of `data`, and their default values are `original` and `predicted`.
 
 ### AJ/AA
 
