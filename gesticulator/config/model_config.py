@@ -111,7 +111,7 @@ def construct_model_config_parser(add_trainer_args = True):
                help='The length of the saved gesture predictions in seconds')
 
     parser.add('--prediction_save_formats', '-save_formats', action='append', default=[],
-               choices=["bvh_file", "raw_gesture", "video"],
+               choices=["bvh_file", "raw_gesture", "video", "3d_coordinates"],
                help='The format(s) in which the predictions will be saved.'
                     'To enable multiple formats, provide the formats separately e.g. '
                     '--prediction_save_formats bvh_file --prediction_save_formats videos')

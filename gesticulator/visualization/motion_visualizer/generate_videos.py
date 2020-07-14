@@ -37,28 +37,6 @@ def visualize(motion_in, bvh_file, npy_file, mp4_file, start_t, end_t, data_pipe
     # Visualize those 3D coordinates
     create_video(npy_file, mp4_file, start_t, end_t)
 
-
-def create_arg_parser():
-    parser = argparse.ArgumentParser(description="Transform BVH files into an array of feature-vectors")
-    
-    parser.add_argument("--start_t", "-st", default=0, 
-                        help="Start time for the sequence")
-    parser.add_argument("--end_t", "-end", default=10, 
-                        help="End time for the sequence")
-    parser.add_argument("--raw_input_folder", "-in", default=None,
-                        help="""The folder that contains the raw input data for creating the videos
-                             (default: ../../../results/<run_name>/generated_gestures/test/raw_gestures)""")
-    parser.add_argument("--output_folder", "-out", default=None,
-                        help="""The folder where the generated videos will be saved
-                             (default: ../../../results/<run_name>/test_videos/)""")
-    parser.add_argument("--run_name", "-run", default="last_run",
-                        help="""If the results were saved in the default folders during training,
-                             the input/output folders for generating the videos can be inferred from this parameter.""")
-    parser.add_argument("--data_pipe_dir", "-pipe", type=str, default="../../utils/data_pipe.sav",
-                        help="Temporary pipe file used during conversion")
-    
-    return parser
-
 def generate_videos(raw_input_folder, output_folder, run_name, data_pipe_dir, start_t=0, end_t=10):
 # Go over all the results we have
     for filename in os.listdir(raw_input_folder):
@@ -93,6 +71,28 @@ def generate_videos(raw_input_folder, output_folder, run_name, data_pipe_dir, st
         os.remove(resulting_bvh_file)
         os.remove(resulting_npy_file)
 
+def create_arg_parser():
+    parser = argparse.ArgumentParser(description="Transform BVH files into an array of feature-vectors")
+    
+    parser.add_argument("--start_t", "-st", default=0, 
+                        help="Start time for the sequence")
+    parser.add_argument("--end_t", "-end", default=10, 
+                        help="End time for the sequence")
+    parser.add_argument("--raw_input_folder", "-in", default=None,
+                        help="""The folder that contains the raw input data for creating the videos
+                             (default: ../../../results/<run_name>/generated_gestures/test/raw_gestures)""")
+    parser.add_argument("--output_folder", "-out", default=None,
+                        help="""The folder where the generated videos will be saved
+                             (default: ../../../results/<run_name>/test_videos/)""")
+    parser.add_argument("--run_name", "-run", default="last_run",
+                        help="""If the results were saved in the default folders during training,
+                             the input/output folders for generating the videos can be inferred from this parameter.""")
+    parser.add_argument("--data_pipe_dir", "-pipe", type=str, default="../../utils/data_pipe.sav",
+                        help="Temporary pipe file used during conversion")
+    
+    return parser
+
+
 if __name__ == "__main__":
     # Parse command line params
     args = create_arg_parser().parse_args()
@@ -105,9 +105,7 @@ if __name__ == "__main__":
         os.makedirs(args.output_folder, exist_ok=True)
 
     generate_videos(**vars(args))
-
-    
-
+   
     """
     # Visualize training data
     raw_data_folder = "/home/taras/Documents/Datasets/SpeechToMotion/Irish/processed/Test/test/labels"
