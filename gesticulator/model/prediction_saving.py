@@ -70,9 +70,11 @@ class PredictionSavingMixin(ABC):
         for phase in enabled_phases: 
             for save_format in self.hyper_params.prediction_save_formats:
                 try:
+                    # make the directory name plural
+                    save_format = save_format + 's' if not save_format.endswith('s') else save_format
                     os.makedirs(path.join(
                         self.hyper_params.generated_gestures_dir, 
-                        phase, save_format + 's')) # e.g. <results>/<run_name>/generated_gestures/test/videos
+                        phase, save_format)) # e.g. <results>/<run_name>/generated_gestures/test/videos
                 except:
                     print("-----------------------------------------------------------------------")
                     print(f"WARNING: cannot create '{save_format}' directory for saving model outputs.")
@@ -84,8 +86,8 @@ class PredictionSavingMixin(ABC):
     def generate_training_predictions(self):
         """Predict gestures for the training input and save the results."""
         predicted_gestures = self.forward(
-            audio = self.train_input[0],
-            text = self.train_input[1],
+            audio = self.train_input['audio'],
+            text = self.train_input['text'],
             use_conditioning=True, 
             motion=None).cpu().detach().numpy()
 
@@ -232,23 +234,18 @@ class PredictionSavingMixin(ABC):
             self.get_prediction_save_paths(phase, filename)
 
         data_pipe = path.join(os.getcwd(), 'utils/data_pipe.sav')
-        
-        # The numpy array format is a special case, because  the visualize call
-        # adds additional joints to the it (in the model we only use 15 out of the 46 joints).
-        # This is problematic because with those additional joints, we cannot use the numpy array
-        # anymore for generating videos or for quantitative evaluation.
-        
-        if "raw_gesture" in enabled_save_paths:
-            # Therefore we save the model outputs as they are:
+       
+        if "raw_gesture" in enabled_save_paths.keys():
             np.save(enabled_save_paths["raw_gesture"], gestures)
-            # And use a temporary file for the visualize call
-            disabled_save_paths["raw_gesture"] = "temp.npy"
 
+        get_save_path = \
+            lambda key: enabled_save_paths[key] if key in enabled_save_paths \
+                                                else disabled_save_paths[key]
         visualize(
             gestures, 
-            bvh_file = enabled_save_paths["bvh"] if "bvh" in enabled_save_paths else disabled_save_paths["bvh"],
-            mp4_file = enabled_save_paths["video"] if "video" in enabled_save_paths else disabled_save_paths["video"],
-            npy_file = disabled_save_paths["raw_gesture"], # always a temporary file
+            bvh_file = get_save_path("bvh"),
+            mp4_file = get_save_path("video"),
+            npy_file = get_save_path("3d_coordinates"),
             start_t = 0, 
             end_t = self.data_fps * self.hyper_params.saved_prediction_duration_sec,
             data_pipe_dir = data_pipe)
@@ -283,6 +280,7 @@ class PredictionSavingMixin(ABC):
                 
         enabled_format_paths = {}
         disabled_format_paths = {}
+
         # BVH format
         if is_enabled("bvh_file"):
             enabled_format_paths["bvh"] = get_persistent_path("bvh_files", ".bvh")
@@ -294,6 +292,12 @@ class PredictionSavingMixin(ABC):
             enabled_format_paths["raw_gesture"] = get_persistent_path("raw_gestures", ".npy")      
         else:
             disabled_format_paths["raw_gesture"] = get_temporary_path(".npy")
+
+        # 3D coordinates
+        if is_enabled("3d_coordinates"):
+            enabled_format_paths["3d_coordinates"] = get_persistent_path("3d_coordinates", ".npy")
+        else:
+            disabled_format_paths["3d_coordinates"] = get_temporary_path("_coordinates.npy")
 
         # Video format
         if is_enabled("video"):
