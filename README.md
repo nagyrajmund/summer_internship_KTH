@@ -55,11 +55,11 @@ cd ..
 python train.py
 ```
 
-The model configuration and the training parameters are automatically read from the `config/default_model_config.yaml` file. 
+The model configuration and the training parameters are automatically read from the `gesticulator/config/default_model_config.yaml` file. 
 
 ### Notes
 
-The results will be available in the `/results/last_run/` folder, where you will find the Tensorboard logs alongside with the trained model file and the generated output on the semantic test segments (described in the paper).
+The results will be available in the `results/last_run/` folder, where you will find the Tensorboard logs alongside with the trained model file and the generated output on the semantic test segments (described in the paper).
 
 If the `--run_name <name>` command-line argument is provided, the `results/<name>` folder will be created and the results will be stored there. This can be very useful when you want to keep your logs and outputs for separate runs.
 
@@ -82,7 +82,7 @@ Please check the required arguments by running
 
 ## 5. Quantitative evaluation
 
-For quantitative evaluate, you may use the scripts in the `obj_evaluation` subfolder of this directory. More details on how to use them in the subfolder itself.
+For the quantitative evaluation, you may use the scripts in the `gesticulator/obj_evaluation` folder, which 
 
 ## Citing
 
