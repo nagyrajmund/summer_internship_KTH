@@ -1,5 +1,3 @@
-/dataset/*
-/dataset/README.md
 /results/*
 /gesticulator/data_processing/.word_vectors_cache/*
 **/__pycache__/*

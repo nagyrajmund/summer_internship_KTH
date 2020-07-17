@@ -1,11 +1,12 @@
 # For detailed information regarding these parameters, see 'model_config.py'
+# The values here are the same as the defaults in the code
 
 # ---- Data directories ----
 data_dir:   '../dataset/processed'
 result_dir: '../results'
 run_name:   'last_run'
-# generated_prediction_dir:     # defaults to <result_dir>/<run_name>/generated_gestures/
-# saved_models_dir:     # defaults to <result_dir>/<run_name>/models
+# generated_prediction_dir: # defaults to <result_dir>/<run_name>/generated_gestures/
+# saved_models_dir:         # defaults to <result_dir>/<run_name>/models
 
 # ---- Data processing parameters ----
 sequence_length: 40 # The length of each training sequence 
@@ -33,16 +34,16 @@ dropout: 0.2
 dropout_multiplier: 4.0 # The dropout is multiplied by this factor in the conditioning layer
 
 # ---- Parameters for saving model predictions ----
-save_val_predictions_every_n_epoch: 0
-save_train_predictions_every_n_epoch: 0
+save_val_predictions_every_n_epoch: 0 # Disabled by default
+save_train_predictions_every_n_epoch: 0 # Disabled by default
 saved_prediction_duration_sec: 9
-prediction_save_formats: ["video"] # Can be "bvh_file" and "raw_gesture" too
+prediction_save_formats: ["video", "raw_gesture"] # Can be "bvh_file" and "3d_coordinates" too
 
-# ---- Binary flags ---- (simply uncomment them to turn them on) 
-generate_semantic_test_predictions
-# use_pca
-# use_recurrent_speech_enc
-# no_overwrite_warning 
-
-# If 'no_overwrite_warning' (above) is set, and the given <run_name> directory
+# ---- Binary flags ---- 
+generate_semantic_test_predictions: False
+generate_random_test_predictions: False
+use_pca: False
+use_recurrent_speech_enc: False
+no_overwrite_warning: False
+# If 'no_overwrite_warning' is set, and the given <run_name> directory
 # already exists, it will be cleared without displaying any warnings
