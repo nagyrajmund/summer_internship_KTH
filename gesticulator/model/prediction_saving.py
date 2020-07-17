@@ -217,7 +217,7 @@ class PredictionSavingMixin(ABC):
 
     def save_prediction(self, gestures, phase, filename = None):
         """
-        Save the given gestures to the <generated_gestures_dir>/'phase' folder 
+        Save the given gestures to the <generated_gestures_dir>/<phase> folder 
         using the formats found in hyper_params.prediction_save_formats.
 
         The possible formats are: BVH file, MP4 video and raw numpy array.
@@ -232,7 +232,7 @@ class PredictionSavingMixin(ABC):
         
         enabled_save_paths, disabled_save_paths = \
             self.get_prediction_save_paths(phase, filename)
-
+       
         data_pipe = path.join(os.getcwd(), 'utils/data_pipe.sav')
        
         if "raw_gesture" in enabled_save_paths.keys():
@@ -290,8 +290,8 @@ class PredictionSavingMixin(ABC):
         # Raw numpy array format
         if is_enabled("raw_gesture"):
             enabled_format_paths["raw_gesture"] = get_persistent_path("raw_gestures", ".npy")      
-        else:
-            disabled_format_paths["raw_gesture"] = get_temporary_path(".npy")
+        # NOTE: there's no need for a temporary path if the raw gestures are disabled
+        #       because only the visualize() call creates temporary files
 
         # 3D coordinates
         if is_enabled("3d_coordinates"):
