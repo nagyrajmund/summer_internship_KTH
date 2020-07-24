@@ -1,3 +1,7 @@
+# [work in progress]
+
+ReadMe from the original repo:
+
 # Gesticulator: A framework for semantically-aware speech-driven gesture generation
 This repository contains PyTorch based implementation of the framework for semantically-aware speech-driven gesture generation, which can be used to reproduce the experiments in the paper [Gesticulator](https://arxiv.org/abs/2001.09326).
 
