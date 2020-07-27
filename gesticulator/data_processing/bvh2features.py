@@ -85,4 +85,4 @@ if __name__ == '__main__':
                 basename = os.path.splitext(os.path.basename(ff))[0]
                 files.append(basename)
 
-    extract_joint_angles(params.bvh_dir, files, params.dest_dir, params.pipeline_dir , fps=20)
+    extract_joint_angles(params.bvh_dir, files, params.dest_dir, params.pipeline_dir , fps=60)
