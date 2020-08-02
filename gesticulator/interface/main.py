@@ -1,4 +1,4 @@
-import os.path
+import os.path as path
 import sys
 
 from gesticulator.model.model import GesticulatorModel
@@ -32,7 +32,7 @@ class GestureGeneratorService:
         print("Predicting gestures...")
         gestures = self.predictor.predict_gestures(paths['audio'], paths['text'])
         print("Saving gestures...")
-        out_file = "/home/work/Desktop/repositories/gesticulator/gesticulator/interface/predicted_rotations_{}.csv"
+        out_file = "interface/predicted_rotations_{}.csv"
         np.savetxt(out_file.format('x'), gestures[:, :, 0], delimiter=',')
         np.savetxt(out_file.format('y'), gestures[:, :, 1], delimiter=',')
         np.savetxt(out_file.format('z'), gestures[:, :, 2], delimiter=',')
@@ -40,9 +40,9 @@ class GestureGeneratorService:
         answer = \
             json.dumps(
             {
-                'xRotationCsvPath' : out_file.format('x'),
-                'yRotationCsvPath' : out_file.format('y'),
-                'zRotationCsvPath' : out_file.format('z'),
+                'xRotationCsvPath' : path.abspath(out_file.format('x')),
+                'yRotationCsvPath' : path.abspath(out_file.format('y')),
+                'zRotationCsvPath' : path.abspath(out_file.format('z')),
                 'framerate' : 20, #TODO where to set this
                 'numFrames' : gestures.shape[0]
             }, separators=(',', ':'))
@@ -55,8 +55,8 @@ class GestureGeneratorService:
         print("ERROR:", message)
 
 if __name__ == "__main__":
-    model_file = "/home/work/Desktop/repositories/gesticulator/gesticulator/interface/model_ep150.ckpt"
-    mean_pose_file = "/home/work/Desktop/repositories/gesticulator/gesticulator/utils/mean_pose.npy"
+    model_file = "interface/model_ep150.ckpt"
+    mean_pose_file = "utils/mean_pose.npy"
     
     with GestureGeneratorService(model_file, mean_pose_file) as service:
         print("Waiting for messages...", end='\n')
@@ -64,26 +64,6 @@ if __name__ == "__main__":
         while True:
             time.sleep(0.01)
     
-
-    # # 1. Receive input filenames from Unity
-    # input_json = "/home/work/Desktop/repositories/gesticulator/gesticulator/interface/profiling/NaturalTalking_01_5s.json"
-    # input_wav  = "/home/work/Desktop/repositories/gesticulator/gesticulator/interface/profiling/NaturalTalking_01_5s.wav"
-    
-    # output_bvh = "/home/work/Desktop/repositories/gesticulator/gesticulator/interface/out.bvh"
-    # output_npy = "/home/work/Desktop/repositories/gesticulator/gesticulator/interface/out.npy"
-    # output_csv = "/home/work/Desktop/repositories/gesticulator/gesticulator/interface/out.csv"
-    
-    # #TODO: we currently have to pass kwargs like this, see https://github.com/PyTorchLightning/pytorch-lightning/issues/2550
-    # print(model.hparams.data_dir)
-    # # 3. Produce gestures with Gesticulator
-    # gestures = predictor.predict_gestures(input_wav, input_json, output_bvh, output_npy, output_csv)
-    # # 4. Save gestures as a csv file
-    # out_file = "/home/work/Desktop/repositories/gesticulator/gesticulator/interface/predicted_rotations_{}.csv"
-
-    # raise Exception("Huh")
-    # # 5. Send csv filename to Unity
-    # char_name = "CharF05Chatbot"
-
     # joint_names = \
     # [
     #     'mixamorig:Hips',
@@ -142,52 +122,4 @@ if __name__ == "__main__":
     #     # 'mixamorig:Hips/mixamorig:LeftUpLeg/mixamorig:LeftLeg/mixamorig:LeftFoot/mixamorig:LeftForeFoot',
     #     # 'mixamorig:Hips/mixamorig:LeftUpLeg/mixamorig:LeftLeg/mixamorig:LeftFoot/mixamorig:LeftForeFoot/mixamorig:LeftToeBase',
     # ]
-    # while True:
-    #     for frame in npy:
-    #         for idx, joint in enumerate(frame):
-                
-    #             rotation = Quaternion(axis=[1,0,0], angle=joint[0]) * \
-    #                 Quaternion(axis=[0,1,0], angle=joint[1]) * \
-    #                 Quaternion(axis=[0,0,1], angle=joint[2])
-                
-    #             message = \
-    #                 json.dumps(
-    #                 {
-    #                     'character' : char_name,
-    #                     'joint_rotation': {
-    #                         'name': joint_names[idx],
-    #                         'quaternion': [
-    #                             rotation[0], rotation[1], 
-    #                             rotation[2], rotation[3]]
-    #                     }
-    #                 }, separators=(',', ':'))
-
-    #             connection.send_JSON(message)
-    #             sleep(1/100)
-    #             print(joint_names[idx], flush=True)
-
-
-    # while(True):
-    #     angle = 0
-    #     while(angle < 2 * pi):
-    #         rotation = Quaternion(axis=[1, 1, 1], angle=angle)
-    #         angle += pi / 60
-
-    #         message = \
-    #             json.dumps(
-    #             {
-    #                 'character' : char_name,
-    #                 'joint_rotation': {
-    #                     'name': joint_name,
-    #                     'quaternion': [
-    #                         rotation[0], rotation[1], 
-    #                         rotation[2], rotation[3]]
-    #                 }
-    #             }, separators=(',',':'))
-
-    #         # print("sending:", message)
-    #         connection.send_JSON(message)
-
-    #         sleep(1/60)
-
-    # connection.close_network()
+   
