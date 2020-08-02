@@ -6,7 +6,13 @@ import datetime
 import stomp
 
 # install package stomp.py
+class Listener():
+    def on_message(self, headers, message):
+        print("[MSG]", message)
 
+    def on_error(self, headers, message):
+        print("[ERR]", message)
+        stomp.PrintingListener()
 class MessagingServer():
     def __init__(self, listener):
         self.listener = listener

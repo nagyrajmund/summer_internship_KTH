@@ -9,12 +9,14 @@ import joblib
 
 def write_bvh(datapipe_file, anim_clip, filename, fps):
     data_pipeline = joblib.load(datapipe_file[0])
+
     inv_data = data_pipeline.inverse_transform(anim_clip)
     writer = BVHWriter()
     for i in range(0, anim_clip.shape[0]):
         with open(filename, "w") as f:
             writer.write(inv_data[i], f, framerate=fps)
 
+    return inv_data
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:

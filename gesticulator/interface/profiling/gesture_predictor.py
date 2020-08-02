@@ -9,7 +9,9 @@ from gesticulator.data_processing import tools
 from gesticulator.model.model import GesticulatorModel
 import torch
 from motion_visualizer.convert2bvh import write_bvh
-
+from motion_visualizer.bvh2npy import convert_bvh2npy
+from pyquaternion import Quaternion
+import joblib
 # NOTE: Currently this interface will only work if it's used on  
 #           the same device that the model was trained on. # TODO(RN)
 
@@ -18,7 +20,7 @@ class GesturePredictor:
     
     def __init__(self, 
                  model : GesticulatorModel, feature_type : str, 
-                 past_context : int, future_context : int):
+                 past_context : int = None, future_context : int = None):
         """An interface for generating gestures from a trained model.
 
         Args:
@@ -28,10 +30,10 @@ class GesturePredictor:
             future_context:  the number of future timesteps to use as context (default: the future_context of the model)
         """
         if past_context is None:
-            past_context = model.hyper_params.past_context
+            past_context = model.hparams.past_context
 
         if future_context is None:
-            future_context = model.hyper_params.future_context
+            future_context = model.hparams.future_context
 
         self.model = model.eval() # Put the model into 'testing' mode
         self.feature_type = feature_type
@@ -44,7 +46,7 @@ class GesturePredictor:
 
         print("GesturePredictor has been succesfully created!")
         
-    def predict_gestures(self, audio_fname, text_fname, bvh_fname=None):
+    def predict_gestures(self, audio_fname, text_fname):
         """ Predict the gesticulation for the given audio and text inputs.
         Args:
             audio_path:  the path to the audio input
@@ -55,20 +57,36 @@ class GesturePredictor:
             predicted_motion:  the predicted gesticulation in the exponential map format
         """
         audio, text = self._extract_features(audio_fname, text_fname)
-        # upsample the text so that it aligns with the audio
-        cols = np.linspace(0, text.shape[1], endpoint=False, num=text.shape[1] * 2, dtype=int)
-        text = text[:, cols, :]
         predicted_motion = self.model.forward(audio, text, use_conditioning=True, motion=None)
+        joint_angles = self._convert_to_euler_angles(predicted_motion)
 
-        if bvh_fname is not None:
-            write_bvh(("utils/data_pipe.sav",), 
-                      predicted_motion.detach(),
-                      bvh_fname, 
-                      fps=20)
-
-        return predicted_motion
+        return joint_angles
 
     # -------- Private methods --------
+
+    def _convert_to_euler_angles(self, predicted_motion):
+        data_pipeline = joblib.load("/home/work/Desktop/repositories/gesticulator/gesticulator/utils/data_pipe.sav")
+        # 'inverse_transform' returns a list with one MoCapData object
+        joint_angles = data_pipeline.inverse_transform(predicted_motion.detach().numpy())[0].values
+        
+        joint_names = ['Spine', 'Spine1', 'Spine2', 'Spine3', 'Neck', 'Neck1', 'Head',
+            'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand',
+            'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand']
+        
+        n_joints = len(joint_names)
+        n_frames = joint_angles.shape[0]
+        # The joint angles will be stored in 3 separate csv files
+        rotations = np.empty((n_frames, n_joints, 3)) 
+
+        for joint_idx, joint_name in enumerate(joint_names):
+            x = joint_angles[joint_name + '_Xrotation']
+            y = joint_angles[joint_name + '_Yrotation']
+            z = joint_angles[joint_name + '_Zrotation']
+
+            for frame_idx in range(n_frames):
+                rotations[frame_idx, joint_idx, :] = [x[frame_idx], y[frame_idx], z[frame_idx]]
+
+        return rotations
 
     def _create_embedding(self, text_dim):
         if text_dim == 773:
@@ -141,5 +159,11 @@ class GesturePredictor:
         
         self._align_vector_lengths(audio_features, encoded_text)
 
-        T = self._tensor_from_numpy
-        return T(audio_features), T(encoded_text)
+        audio = self._tensor_from_numpy(audio_features)
+        text = self._tensor_from_numpy(encoded_text)
+
+        # upsample the text so that it aligns with the audio
+        cols = np.linspace(0, text.shape[1], endpoint=False, num=text.shape[1] * 2, dtype=int)
+        text = text[:, cols, :]
+
+        return audio, text

@@ -12,6 +12,7 @@ def convert_bvh2npy(bvh_file, npy_file):
 
     np.save(npy_file, output_vectors)
 
+    return output_vectors
 
 if __name__ == "__main__":
 

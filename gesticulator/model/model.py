@@ -67,7 +67,6 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         """
         super().__init__()
         self.save_hyperparameters(args)
-
         if inference_mode:
             if audio_dim is None or mean_pose_file is None:
                 print("ERROR: Please provide the 'audio_dim' and the 'mean_pose_file' parameters for GesticulatorModel when using inference mode!")
@@ -449,7 +448,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
 
     def training_epoch_end(self, outputs):
         elapsed_epochs = self.current_epoch - self.last_saved_train_prediction_epoch 
-        saving_frequency = self.hyper_params.save_train_predictions_every_n_epoch
+        saving_frequency = self.hparams.save_train_predictions_every_n_epoch
         
         if self.save_train_predictions and elapsed_epochs >= saving_frequency:
             self.last_saved_train_prediction_epoch = self.current_epoch
@@ -484,7 +483,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
             outputs: whatever "validation_step" has returned
         """
         elapsed_epochs = self.current_epoch - self.last_saved_val_prediction_epoch 
-        saving_frequency = self.hyper_params.save_val_predictions_every_n_epoch
+        saving_frequency = self.hparams.save_val_predictions_every_n_epoch
 
         if self.save_val_predictions and elapsed_epochs >= saving_frequency:
             self.last_saved_val_prediction_epoch = self.current_epoch
