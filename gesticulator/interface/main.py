@@ -15,7 +15,9 @@ from asyncio import Semaphore
 
 class GestureGeneratorService:
     def __init__(self, model_file, mean_pose_file):
+        print("Loading Gesticulator...")
         self.model = GesticulatorModel.load_from_checkpoint(model_file, inference_mode=True, mean_pose_file=mean_pose_file, audio_dim=4)
+        print("Creating GesturePredictor interface...")
         self.predictor = GesturePredictor(self.model, feature_type="Pros")
         self.connection = MessagingServer(self)
         
@@ -30,7 +32,7 @@ class GestureGeneratorService:
         paths = json.loads(message)
 
         print("Predicting gestures...")
-        gestures = self.predictor.predict_gestures(paths['audio'], paths['text'])
+        gestures = self.predictor.predict_gestures(paths['audio'], paths['text'], use_with_dialogflow=True)
         print("Saving gestures...")
         out_file = "interface/predicted_rotations_{}.csv"
         np.savetxt(out_file.format('x'), gestures[:, :, 0], delimiter=',')
@@ -57,7 +59,6 @@ class GestureGeneratorService:
 if __name__ == "__main__":
     model_file = "interface/model_ep150.ckpt"
     mean_pose_file = "utils/mean_pose.npy"
-    
     with GestureGeneratorService(model_file, mean_pose_file) as service:
         print("Waiting for messages...", end='\n')
 

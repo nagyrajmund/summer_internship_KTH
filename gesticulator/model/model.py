@@ -279,8 +279,8 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         future_context = self.hparams.future_context
         for time_st in range(past_context, audio.shape[1] - future_context):
             # take current audio and text of the speech
-            curr_audio = audio[:, time_st - past_context:time_st+future_context]
-            curr_text = text[:, time_st-past_context:time_st+future_context]
+            curr_audio = audio[:, time_st - past_context : time_st+future_context]
+            curr_text = text[:, time_st - past_context : time_st+future_context]
             curr_speech = torch.cat((curr_audio, curr_text), 2)
             # encode speech
             if self.hparams.use_recurrent_speech_enc:
