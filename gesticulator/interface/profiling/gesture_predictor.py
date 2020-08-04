@@ -58,11 +58,18 @@ class GesturePredictor:
             
         """
         audio, text = self._extract_features(audio_fname, text_fname, use_with_dialogflow)
+
+        min_len = self.model.hparams.past_context + self.model.hparams.future_context
+        
+        if audio.shape[1] < min_len:
+            print("Audio is too short ({audio.shape[1] frames}), cannot predict gestures!")
+            return np.random.rand(1, 15, 3)
+
         predicted_motion = self.model.forward(audio, text, use_conditioning=True, motion=None)
         joint_angles = self._convert_to_euler_angles(predicted_motion)
-
+        
         return joint_angles
-
+        
     # -------- Private methods --------
 
     def _convert_to_euler_angles(self, predicted_motion):
@@ -184,7 +191,7 @@ class GesturePredictor:
 
             word_encoding = self.embedding[curr_word]
             w_duration = round(total_duration_sec * 10 * word_num_syl / total_num_syl)
-            w_speed = word_num_syl / w_duration
+            w_speed = word_num_syl / w_duration if w_duration > 0 else 10 # Because 10 FPS
             w_start = elapsed_deciseconds
             w_end   = w_start + w_duration
             print("Word: {} | Duration: {} | #Syl: {} | time: {}-{}".format(curr_word, w_duration, word_num_syl, w_start, w_end))            
@@ -217,23 +224,37 @@ class GesturePredictor:
 
     def _align_vector_lengths(self, audio_features, encoded_text):
         min_len = min(len(audio_features), 2 * len(encoded_text))
-        tools.shorten(audio_features, encoded_text, min_len)
+        # make sure the length is even
+        if min_len % 2 ==1:
+            min_len -= 1
 
+        audio_features, encoded_text = tools.shorten(audio_features, encoded_text, min_len)
         # The transcriptions were created with half the audio sampling rate
         # So the text vector should contain half as many elements 
         encoded_text = encoded_text[:int(min_len/2)] 
 
-    def _extract_features(self, audio, text, use_with_dialogflow):
-        audio_features = self._extract_audio_features(audio)
-        print("Audio features shape", audio_features.shape)
+        return audio_features, encoded_text
+        
+    def _extract_features(self, audio_in, text_in, use_with_dialogflow):
+        """
+        Extract the features for the given input. 
+        
+        Args:
+            audio_in: the path to the wav file
+            text_in:  the speech as text (if use_with_dialogflow is True)
+                      or the path to the JSON transcription (if use_with_dialogflow is False)
+        """
+
+        audio_features = self._extract_audio_features(audio_in)
         if use_with_dialogflow:
-            encoded_text = self._estimate_word_timings(text, total_duration_sec = audio_features.shape[0] / self.model.data_fps)
+            total_duration_sec = audio_features.shape[0] / self.model.data_fps
+            print(f"Received text: {text_in} ({total_duration_sec} seconds)")
+
+            encoded_text = self._estimate_word_timings(text_in, total_duration_sec)
         else:
-            encoded_text = self._extract_text_features(text)
-        print("Text shape: ", encoded_text.shape)
-        print(text)
-        print("-----------")
-        self._align_vector_lengths(audio_features, encoded_text)
+            encoded_text = self._extract_text_features(text_in)
+
+        audio_features, encoded_text = self._align_vector_lengths(audio_features, encoded_text)
 
         audio = self._tensor_from_numpy(audio_features)
         text = self._tensor_from_numpy(encoded_text)
