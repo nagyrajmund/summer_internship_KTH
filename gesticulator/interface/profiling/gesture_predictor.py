@@ -14,6 +14,7 @@ from pyquaternion import Quaternion
 import joblib
 from gesticulator.data_processing.text_features.syllable_count import count_syllables
 import inflect
+from gesticulator.visualization.motion_visualizer.generate_videos import visualize
 # NOTE: Currently this interface will only work if it's used on  
 #           the same device that the model was trained on. # TODO(RN)
 
@@ -66,8 +67,11 @@ class GesturePredictor:
             return np.random.rand(1, 15, 3)
 
         predicted_motion = self.model.forward(audio, text, use_conditioning=True, motion=None)
+        print("Visualizing...")
+        joint_angles = visualize(predicted_motion.detach().numpy(), "temp.bvh", "temp.npy", "temp.mp4", -1, 20, "utils/data_pipe.sav")
+        print("Done!")
         joint_angles = self._convert_to_euler_angles(predicted_motion)
-        
+ 
         return joint_angles
         
     # -------- Private methods --------
@@ -76,12 +80,33 @@ class GesturePredictor:
         data_pipeline = joblib.load("/home/work/Desktop/repositories/gesticulator/gesticulator/utils/data_pipe.sav")
         # 'inverse_transform' returns a list with one MoCapData object
         joint_angles = data_pipeline.inverse_transform(predicted_motion.detach().numpy())[0].values
-        
+
         joint_names = [
             'Spine', 'Spine1', 'Spine2', 'Spine3', 'Neck', 'Neck1', 'Head',
             'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand',
             'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand']
         
+        joint_angles['LeftShoulder_Yrotation'] += 90    
+        joint_angles['LeftShoulder_Xrotation'] += 180
+
+        joint_angles['RightShoulder_Yrotation'] += -90    
+        joint_angles['RightShoulder_Xrotation'] += 180
+
+        # This works
+        # joint_angles['LeftForeArm_Zrotation'] *= -1    
+        # joint_angles['LeftForeArm_Xrotation'] = joint_angles['LeftForeArm_Yrotation'] * -1         
+        # +90 + 45 = -45
+
+        # joint_angles['LeftForeArm_Xrotation'][:15] = 0
+        # joint_angles['LeftForeArm_Yrotation'][:15] = 0
+        # joint_angles['LeftForeArm_Zrotation'][:15] = 0
+        # joint_angles['LeftForeArm_Xrotation'][15:] = 90 # Bring it front
+        # joint_angles['LeftForeArm_Yrotation'][15:] = -45 # Bring it up
+        # joint_angles['LeftForeArm_Zrotation'][15:] = 0 # 
+        # ------------------------------------------
+
+
+
         n_joints = len(joint_names)
         n_frames = joint_angles.shape[0]
         # The joint angles will be stored in 3 separate csv files
@@ -244,6 +269,7 @@ class GesturePredictor:
             text_in:  the speech as text (if use_with_dialogflow is True)
                       or the path to the JSON transcription (if use_with_dialogflow is False)
         """
+        # text_in = "I'm actually funny a really fun to do I just on the southern mindfulness exercise in a way because I kind of forces you to just be present in the moment and 4 time 4 time being instead of going to like letting yourself be occupied with all sorts of other stuff in this kind of having your mind on other stuff on going on autopilot while you're trying to do a particular task and so do you mind if I kind of like turn around and noticed can a business having a great thing about yoga actually is that it is a really cool at times I can be the kind of like lesson in mental health as well which is really really cool like for example like something like crow pose which that one where you can get down and do this to this kind of thing where your eye called balancing on your hands and every time I saw crow pose I always want I should be able to do that I'll just try to do it instead of like learning from like the bass"
 
         audio_features = self._extract_audio_features(audio_in)
         if use_with_dialogflow:
