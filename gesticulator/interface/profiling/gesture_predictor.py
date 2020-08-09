@@ -67,9 +67,6 @@ class GesturePredictor:
             return np.random.rand(1, 15, 3)
 
         predicted_motion = self.model.forward(audio, text, use_conditioning=True, motion=None)
-        print("Visualizing...")
-        joint_angles = visualize(predicted_motion.detach().numpy(), "temp.bvh", "temp.npy", "temp.mp4", -1, 20, "utils/data_pipe.sav")
-        print("Done!")
         joint_angles = self._convert_to_euler_angles(predicted_motion)
  
         return joint_angles
@@ -85,27 +82,6 @@ class GesturePredictor:
             'Spine', 'Spine1', 'Spine2', 'Spine3', 'Neck', 'Neck1', 'Head',
             'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand',
             'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand']
-        
-        joint_angles['LeftShoulder_Yrotation'] += 90    
-        joint_angles['LeftShoulder_Xrotation'] += 180
-
-        joint_angles['RightShoulder_Yrotation'] += -90    
-        joint_angles['RightShoulder_Xrotation'] += 180
-
-        # This works
-        # joint_angles['LeftForeArm_Zrotation'] *= -1    
-        # joint_angles['LeftForeArm_Xrotation'] = joint_angles['LeftForeArm_Yrotation'] * -1         
-        # +90 + 45 = -45
-
-        # joint_angles['LeftForeArm_Xrotation'][:15] = 0
-        # joint_angles['LeftForeArm_Yrotation'][:15] = 0
-        # joint_angles['LeftForeArm_Zrotation'][:15] = 0
-        # joint_angles['LeftForeArm_Xrotation'][15:] = 90 # Bring it front
-        # joint_angles['LeftForeArm_Yrotation'][15:] = -45 # Bring it up
-        # joint_angles['LeftForeArm_Zrotation'][15:] = 0 # 
-        # ------------------------------------------
-
-
 
         n_joints = len(joint_names)
         n_frames = joint_angles.shape[0]
