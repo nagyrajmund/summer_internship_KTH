@@ -248,6 +248,7 @@ class GesturePredictor:
         # text_in = "I'm actually funny a really fun to do I just on the southern mindfulness exercise in a way because I kind of forces you to just be present in the moment and 4 time 4 time being instead of going to like letting yourself be occupied with all sorts of other stuff in this kind of having your mind on other stuff on going on autopilot while you're trying to do a particular task and so do you mind if I kind of like turn around and noticed can a business having a great thing about yoga actually is that it is a really cool at times I can be the kind of like lesson in mental health as well which is really really cool like for example like something like crow pose which that one where you can get down and do this to this kind of thing where your eye called balancing on your hands and every time I saw crow pose I always want I should be able to do that I'll just try to do it instead of like learning from like the bass"
 
         audio_features = self._extract_audio_features(audio_in)
+
         if use_with_dialogflow:
             total_duration_sec = audio_features.shape[0] / self.model.data_fps
             print(f"Received text: {text_in} ({total_duration_sec} seconds)")
@@ -257,12 +258,24 @@ class GesturePredictor:
             encoded_text = self._extract_text_features(text_in)
 
         audio_features, encoded_text = self._align_vector_lengths(audio_features, encoded_text)
+       
+        # upsample the text so that it aligns with the audio
+        cols = np.linspace(0, encoded_text.shape[0], endpoint=False, num=encoded_text.shape[0] * 2, dtype=int)
+        encoded_text = encoded_text[cols, :]
+
+        if self.feature_type != "Pros":
+            print("[ERROR] The context padding is only implemented for Prosody features!")
+            print("Current feature type:", self.feature_type, "is not supported!")
+
+        audio_past = np.zeros((self.model.hparams.past_context, audio_features.shape[1]))
+        audio_future = np.zeros((2*self.model.hparams.future_context, audio_features.shape[1]))
+        audio_features = np.concatenate((audio_past, audio_features, audio_future), axis=0)
+
+        text_past = np.array([[-15] * 300 + [0] * 5] * self.model.hparams.past_context)
+        text_future = np.array([[-15] * 300 + [0] * 5] * 2*self.model.hparams.future_context) # TODO: the future context is doubled so that the arms will hang after the speech
+        encoded_text = np.concatenate((text_past, encoded_text, text_future))
 
         audio = self._tensor_from_numpy(audio_features)
         text = self._tensor_from_numpy(encoded_text)
-
-        # upsample the text so that it aligns with the audio
-        cols = np.linspace(0, text.shape[1], endpoint=False, num=text.shape[1] * 2, dtype=int)
-        text = text[:, cols, :]
 
         return audio, text
