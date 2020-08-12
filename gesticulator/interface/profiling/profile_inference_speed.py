@@ -1,6 +1,6 @@
 from os.path import join, abspath
 from gesticulator.model.model import GesticulatorModel
-from gesture_predictor import GesturePredictor
+from gesture_predictor_timing import GesturePredictorTiming
 import torch
 import cProfile
 import librosa
@@ -56,10 +56,57 @@ def construct_argparser():
 
     return parser
 
-if __name__ == "__main__":
-    args = construct_argparser().parse_args()
+# if __name__ == "__main__":
+#     args = construct_argparser().parse_args()
     
-    print(f"Using {args.duration}s of {args.input}")
+#     print(f"Using {args.duration}s of {args.input}")
 
-    profile_with_clipping(**vars(args))   
+#     profile_with_clipping(**vars(args))   
+    
+if __name__ == "__main__":
+    ## FASTTEXT PROSODY MODEL
+    print("### FASTTEXT PROSODY MODEL ###\n")
+    model_file = "interface/model_ep150.ckpt"
+    mean_pose_file = "utils/mean_pose.npy"
+    
+    feature_type = "Pros"
+    audio_dim = 4
+    model = GesticulatorModel.load_from_checkpoint(model_file, inference_mode=True, mean_pose_file=mean_pose_file, audio_dim=4)
+    input = "NaturalTalking_01"
+    duration = 3
+    
+    truncate_audio(input, duration)
+    
+    audio    = f"{input}_{duration}s.wav"
+    text     = f"{input}_{duration}s.json"
+    text     = "I'm actually funny a really fun to do I just"# on the southern mindfulness exercise"
+    print(f"Feature type: {feature_type} | Duration: {duration}s\n Inputs: {audio} & {text}\n")
+    
+    predictor = GesturePredictorTiming(model, feature_type)
+    gestures = predictor.predict_gestures(audio, text, use_with_dialogflow=True)
+
+    ## BERT SPECTRO MODEL
+    print("\n\n### BERT SPECTROGRAM MODEL ###\n")
+
+    model_file = "/home/work/Desktop/repositories/gesticulator/results/last_run/model_ep1.ckpt"
+    mean_pose_file = "utils/mean_pose.npy"
+    
+    feature_type = "Spectro"
+    audio_dim = 64
+    model = GesticulatorModel.load_from_checkpoint(model_file, inference_mode=True, mean_pose_file=mean_pose_file, audio_dim=64)
+    input = "NaturalTalking_01"
+    duration = 3
+    truncate_audio(input, duration)
+    
+    audio    = f"{input}_{duration}s.wav"
+    text     = f"{input}_{duration}s.json"
+    print(f"Feature type: {feature_type} | Inputs: {audio} & {text} | Duration: {duration}s\n")
+
+    predictor = GesturePredictorTiming(model, feature_type)
+    gestures = predictor.predict_gestures(audio, text, use_with_dialogflow=False)
+
+    # audio    = f"{input}_{duration}s.wav"
+    # text     = f"{input}_{duration}s.json"
+
+    
     
