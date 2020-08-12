@@ -19,13 +19,13 @@ class PredictionSavingMixin(ABC):
     def init_prediction_saving_params(self):
         """Load the input data, create the output directories and the necessary parameters."""
         # Convert the prediction durations to frames
-        self.hyper_params.saved_prediction_duration_frames = \
-            self.hyper_params.past_context \
-            + self.hyper_params.future_context \
-            + self.data_fps * self.hyper_params.saved_prediction_duration_sec
+        self.hparams.saved_prediction_duration_frames = \
+            self.hparams.past_context \
+            + self.hparams.future_context \
+            + self.data_fps * self.hparams.saved_prediction_duration_sec
         
-        if self.hyper_params.generated_gestures_dir is None:
-            self.hyper_params.generated_gestures_dir = path.join(self.save_dir, "generated_gestures")
+        if self.hparams.generated_gestures_dir is None:
+            self.hparams.generated_gestures_dir = path.join(self.save_dir, "generated_gestures")
         
         # Check which phases is the prediction generation enabled in
         enabled_phases = []
@@ -37,7 +37,7 @@ class PredictionSavingMixin(ABC):
         self.save_train_predictions = False
         self.save_val_predictions = False
         # Training
-        if self.hyper_params.save_train_predictions_every_n_epoch > 0:
+        if self.hparams.save_train_predictions_every_n_epoch > 0:
             enabled_phases.append("training")
 
             self.save_train_predictions = True
@@ -46,7 +46,7 @@ class PredictionSavingMixin(ABC):
                 self.load_train_or_val_input(self.train_dataset[0])
           
         # Validation
-        if self.hyper_params.save_val_predictions_every_n_epoch > 0:
+        if self.hparams.save_val_predictions_every_n_epoch > 0:
             enabled_phases.append("validation")
 
             self.save_val_predictions = True
@@ -58,8 +58,8 @@ class PredictionSavingMixin(ABC):
                 self.load_train_or_val_input(self.test_dataset[5]) # TODO magic number (longest validation sequence)        
         
         # Testing
-        if self.hyper_params.generate_semantic_test_predictions \
-        or self.hyper_params.generate_random_test_predictions:
+        if self.hparams.generate_semantic_test_predictions \
+        or self.hparams.generate_random_test_predictions:
             enabled_phases.append("test")
 
             self.test_prediction_inputs = {
@@ -68,20 +68,21 @@ class PredictionSavingMixin(ABC):
         
         # Create the output directories
         for phase in enabled_phases: 
-            for save_format in self.hyper_params.prediction_save_formats:
-                try:
+            for save_format in self.hparams.prediction_save_formats:
                     # make the directory name plural
                     save_format = save_format + 's' if not save_format.endswith('s') else save_format
-                    os.makedirs(path.join(
-                        self.hyper_params.generated_gestures_dir, 
-                        phase, save_format)) # e.g. <results>/<run_name>/generated_gestures/test/videos
-                except:
-                    print("-----------------------------------------------------------------------")
-                    print(f"WARNING: cannot create '{save_format}' directory for saving model outputs.")
-                    print("Perhaps the save formats are duplicated?")
-                    print(f"\t(enabled formats: {self.hyper_params.prediction_save_formats})")
-                    print("-----------------------------------------------------------------------")
-                    sleep(1)
+                    save_dir_path = path.join(self.hparams.generated_gestures_dir, 
+                        phase, save_format)
+                    if not os.path.isdir(save_dir_path):
+                        try:
+                            os.makedirs(save_dir_path) # e.g. <results>/<run_name>/generated_gestures/test/videos
+                        except:
+                            print("-----------------------------------------------------------------------")
+                            print(f"WARNING: cannot create '{save_format}' directory for saving model outputs.")
+                            print("Perhaps the save formats are duplicated?")
+                            print(f"\t(enabled formats: {self.hparams.prediction_save_formats})")
+                            print("-----------------------------------------------------------------------")
+                            sleep(1)
 
     def generate_training_predictions(self):
         """Predict gestures for the training input and save the results."""
@@ -91,7 +92,7 @@ class PredictionSavingMixin(ABC):
             use_conditioning=True, 
             motion=None).cpu().detach().numpy()
 
-        if self.hyper_params.use_pca:
+        if self.hparams.use_pca:
             pca = load('utils/pca_model_12.joblib')
             predicted_gestures = pca.inverse_transform(predicted_gestures)
       
@@ -106,7 +107,7 @@ class PredictionSavingMixin(ABC):
             use_conditioning=True, 
             motion=None).cpu().detach().numpy()
 
-        if self.hyper_params.use_pca:
+        if self.hparams.use_pca:
             pca = load('utils/pca_model_12.joblib')
             predicted_gestures = pca.inverse_transform(predicted_gestures)
       
@@ -138,25 +139,25 @@ class PredictionSavingMixin(ABC):
 
         # TODO: magic number below
         duration_in_frames = 10 * self.data_fps \
-                             + self.hyper_params.past_context \
-                             + self.hyper_params.future_context 
+                             + self.hparams.past_context \
+                             + self.hparams.future_context 
 
         for file_num in segment_start_times.keys():
             audio_full = self.test_prediction_inputs[file_num]['audio']
             text_full = self.test_prediction_inputs[file_num]['text']
 
             for i, start_time in enumerate(segment_start_times[file_num]):
-                start_frame = int(start_time * self.data_fps - self.hyper_params.past_context)
+                start_frame = int(start_time * self.data_fps - self.hparams.past_context)
                 end_frame = start_frame + duration_in_frames
                 # Crop and add the batch dimension
                 audio = audio_full[start_frame:end_frame].unsqueeze(0) 
                 text = text_full[start_frame:end_frame].unsqueeze(0)
-
+                
                 predicted_gestures = self.forward(
                     audio, text, use_conditioning=True, 
                     motion=None).cpu().detach().numpy()
 
-                if self.hyper_params.use_pca:
+                if self.hparams.use_pca:
                     pca = load('utils/pca_model_12.joblib')
                     predicted_gestures = pca.inverse_transform(predicted_gestures)
         
@@ -174,15 +175,12 @@ class PredictionSavingMixin(ABC):
         Load an input sequence that will be used during training or validation,
         and crop it to the given duration in the 'saved_prediction_duration_sec' hyperparameter.
         """
-        # We have to put the data on the same device as the model
-        device = self.encode_speech[0].weight.device
-        
-        audio = torch.as_tensor(input_array['audio'], device=device)
-        text = torch.as_tensor(input_array['text'], device=device)
+        audio = torch.as_tensor(input_array['audio'], device=self.device)
+        text = torch.as_tensor(input_array['text'], device=self.device)
         
         # Crop the data to the required duration and add back the batch_dimension
-        audio = audio[:self.hyper_params.saved_prediction_duration_frames].unsqueeze(0)
-        text = text[:self.hyper_params.saved_prediction_duration_frames].unsqueeze(0)
+        audio = audio[:self.hparams.saved_prediction_duration_frames].unsqueeze(0)
+        text = text[:self.hparams.saved_prediction_duration_frames].unsqueeze(0)
 
         return {'audio': audio, 'text': text}
 
@@ -205,20 +203,17 @@ class PredictionSavingMixin(ABC):
             exit(-1)
         
         input_path = path.join(
-            self.hyper_params.data_dir, "test_inputs", filename)
-
-        # We have to put the data on the same device as the model
-        device = self.encode_speech[0].weight.device
+            self.hparams.data_dir, "test_inputs", filename)
 
         input_tensor = torch.as_tensor(
-            torch.from_numpy(np.load(input_path)), device = device)
+            torch.from_numpy(np.load(input_path)), device=self.device)
         
         return input_tensor.float()
 
     def save_prediction(self, gestures, phase, filename = None):
         """
-        Save the given gestures to the <generated_gestures_dir>/'phase' folder 
-        using the formats found in hyper_params.prediction_save_formats.
+        Save the given gestures to the <generated_gestures_dir>/<phase> folder 
+        using the formats found in hparams.prediction_save_formats.
 
         The possible formats are: BVH file, MP4 video and raw numpy array.
 
@@ -232,7 +227,7 @@ class PredictionSavingMixin(ABC):
         
         enabled_save_paths, disabled_save_paths = \
             self.get_prediction_save_paths(phase, filename)
-
+       
         data_pipe = path.join(os.getcwd(), 'utils/data_pipe.sav')
        
         if "raw_gesture" in enabled_save_paths.keys():
@@ -247,7 +242,7 @@ class PredictionSavingMixin(ABC):
             mp4_file = get_save_path("video"),
             npy_file = get_save_path("3d_coordinates"),
             start_t = 0, 
-            end_t = self.data_fps * self.hyper_params.saved_prediction_duration_sec,
+            end_t = self.data_fps * self.hparams.saved_prediction_duration_sec,
             data_pipe_dir = data_pipe)
 
         # Clean up the temporary files
@@ -266,16 +261,16 @@ class PredictionSavingMixin(ABC):
             disabled_format_paths:  a dictionary containing the save path for each disabled file format
         """
         is_enabled = \
-            lambda fmt : fmt in self.hyper_params.prediction_save_formats
+            lambda fmt : fmt in self.hparams.prediction_save_formats
         
         get_persistent_path = \
             lambda subdir, extension : path.join(
-                self.hyper_params.generated_gestures_dir,
+                self.hparams.generated_gestures_dir,
                 phase, subdir, filename + extension)
         
         get_temporary_path = \
             lambda extension : path.join(
-                self.hyper_params.generated_gestures_dir,
+                self.hparams.generated_gestures_dir,
                 phase, "temp" + extension)
                 
         enabled_format_paths = {}
@@ -290,8 +285,8 @@ class PredictionSavingMixin(ABC):
         # Raw numpy array format
         if is_enabled("raw_gesture"):
             enabled_format_paths["raw_gesture"] = get_persistent_path("raw_gestures", ".npy")      
-        else:
-            disabled_format_paths["raw_gesture"] = get_temporary_path(".npy")
+        # NOTE: there's no need for a temporary path if the raw gestures are disabled
+        #       because only the visualize() call creates temporary files
 
         # 3D coordinates
         if is_enabled("3d_coordinates"):

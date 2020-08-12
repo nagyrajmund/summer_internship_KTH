@@ -23,6 +23,15 @@ pip install -e gesticulator/visualization
 
 For all the scripts which we refer to in this repo description there are several command line arguments which you can see by calling them with the `--help` argument.
 
+## Loading and saving models
+- Pretrained model files can be loaded with the following command
+  ```
+  from gesticulator.model import GesticulatorModel
+  
+  loaded_model = GesticulatorModel.load_from_checkpoint(<PATH_TO_MODEL_FILE>)
+  ```
+- If the `--save_model_every_n_epochs argument` is provided to `train.py`, then the model will be saved regularly during training. 
+
 ## 1. Obtain the data
 - Download the [Trinity Speech-Gesture dataset](https://trinityspeechgesture.scss.tcd.ie/)
 - Either obtain transcriptions by yourself:
