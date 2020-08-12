@@ -115,7 +115,6 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         """Create the <results>/<run_name> folder."""
         run_name = self.hparams.run_name
         self.save_dir = path.join(self.hparams.result_dir, run_name)
-        print("----------- save_dir:", self.save_dir)
         # Clear the save directory for this run if it exists
         if path.isdir(self.save_dir):
             if run_name == 'last_run' or self.hparams.no_overwrite_warning:

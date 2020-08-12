@@ -64,10 +64,6 @@ def add_training_script_arguments(parser):
 
     parser.add_argument('--no_test', '-no_test', action="store_true",
                         help="If set, skip the testing phase")
-
-    parser.add_argument('--save_videos_after_testing', '-save_vids', action="store_true",
-                        help="If set, generate test videos from the raw gesture data after"
-                             "the testing phase is over.")
     return parser
 
 if __name__ == '__main__':
