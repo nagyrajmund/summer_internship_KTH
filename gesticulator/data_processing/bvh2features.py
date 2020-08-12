@@ -20,7 +20,6 @@ if module_path not in sys.path:
 from pymo.parsers import BVHParser
 from pymo.data import Joint, MocapData
 from pymo.preprocessing import *
-from pymo.viz_tools import *
 from pymo.writers import *
 
 import joblib as jl
