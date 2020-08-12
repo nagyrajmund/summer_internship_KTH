@@ -9,7 +9,7 @@ from config.model_config import construct_model_config_parser
 from gesticulator.model.model import GesticulatorModel
 from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TensorBoardLogger
-
+from pytorch_lightning.callbacks.base import Callback
 
 from visualization.motion_visualizer.generate_videos import generate_videos
 SEED = 2334
