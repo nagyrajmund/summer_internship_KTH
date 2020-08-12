@@ -85,13 +85,17 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         self.construct_layers(self.hparams)
         self.init_layers()
         
-        if not inference_mode:
-            self.init_prediction_saving_params()
-
         self.rnn_is_initialized = False
         self.loss = nn.MSELoss()
         self.teaching_freq = 0
     
+    def setup(self, stage):
+        """ 
+        Called at the beginning of trainer.fit() and trainer.test().
+        """
+        self.init_prediction_saving_params()
+
+
     def load_datasets(self):
         try:
             self.train_dataset = SpeechGestureDataset(self.hparams.data_dir, self.hparams.use_pca, train=True)
@@ -273,7 +277,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         # we have to put these Tensors to the same device as the model because 
         # numpy arrays are always on the CPU
         # store the 3 previous poses
-        prev_poses = [torch.from_numpy(init_poses).to(audio.device)] * 3
+        prev_poses = [torch.from_numpy(init_poses).to(self.device)] * 3
         
         past_context   = self.hparams.past_context
         future_context = self.hparams.future_context
