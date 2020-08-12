@@ -9,18 +9,24 @@ from config.model_config import construct_model_config_parser
 from gesticulator.model.model import GesticulatorModel
 from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TensorBoardLogger
-
+from pytorch_lightning.callbacks.base import Callback
 
 from visualization.motion_visualizer.generate_videos import generate_videos
 SEED = 2334
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
+class ModelSavingCallback(Callback):
+    def on_validation_end(self, trainer, model):
+        trainer.save_checkpoint(os.path.join(model.save_dir, f"model_ep{model.current_epoch}.ckpt"))
+        print("Saved checkpoint to", os.path.abspath(os.path.join(model.save_dir, f"model_ep{model.current_epoch}.ckpt")))
+
 def main(hparams):
     model = GesticulatorModel(hparams)
     logger = create_logger(model.save_dir)
 
-    trainer = Trainer.from_argparse_args(hparams, logger=logger)
+    trainer = Trainer.from_argparse_args(hparams, logger=logger, callbacks = [ModelSavingCallback()], 
+        checkpoint_callback=False, early_stop_callback=False)
 
     if not hparams.no_train:
         trainer.fit(model)
