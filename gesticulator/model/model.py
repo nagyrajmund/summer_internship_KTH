@@ -111,7 +111,6 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         """Create the <results>/<run_name> folder."""
         run_name = self.hparams.run_name
         self.save_dir = path.join(self.hparams.result_dir, run_name)
-        print("----------- save_dir:", self.save_dir)
         # Clear the save directory for this run if it exists
         if path.isdir(self.save_dir):
             if run_name == 'last_run' or self.hparams.no_overwrite_warning:
@@ -248,6 +247,30 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
 
     # ----------- Model -----------
 
+    def on_train_start(self):
+        """
+        Load the input data for generating prediction videos on the training
+        and the validation data. These were not used in the paper, but they can
+        be used to track the model performance better than the validation loss.
+        
+        NOTE: The data has to be loaded here because in the constructor,
+        the model is still on the CPU, therefore the data would be always loaded
+        onto the CPU as well, causing a device mismatch if the GPU is enabled.
+        """
+         # Load the first training sequence as input
+        if "training" in self.enabled_phases:
+            self.train_input = \
+                self.load_train_or_val_input(self.train_dataset[0])
+                
+        # Load the first validation sequence as input
+        # NOTE: test_dataset contains predefined validation sequences,
+        #       so we don't touch the actual test data here!
+        # TODO: rename test_dataset...
+        if "validation" in self.enabled_phases:
+            self.val_input = \
+                self.load_train_or_val_input(self.test_dataset[5]) # TODO magic number (longest validation sequence)        
+       
+                
     def forward(self, audio, text, use_conditioning, motion, use_teacher_forcing=True):
         """
         Generate a sequence of gestures based on a sequence of speech features (audio and text)
@@ -501,6 +524,19 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         return {'test_example': predicted_gesture}
 
     def test_epoch_end(self, outputs):
+        """
+        Load the selected semantic and/or random segments 
+        for generating the evaluation videos.
+        
+        NOTE: The data has to be loaded here because in the constructor,
+        the model is still on the CPU, therefore the data would be always loaded
+        onto the CPU as well, causing a device mismatch if the GPU is enabled.
+        """
+        if "test" in self.enabled_phases:
+            self.test_prediction_inputs = {
+                '04': self.load_test_prediction_input('04'),
+                '05': self.load_test_prediction_input('05')}
+
         if self.hparams.generate_semantic_test_predictions:
             self.generate_test_predictions(mode='semantic')
         
