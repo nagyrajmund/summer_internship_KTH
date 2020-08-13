@@ -54,19 +54,20 @@ class PredictionSavingMixin(ABC):
         # Create the output directories
         for phase in self.enabled_phases: 
             for save_format in self.hparams.prediction_save_formats:
-                try:
                     # make the directory name plural
                     save_format = save_format + 's' if not save_format.endswith('s') else save_format
-                    os.makedirs(path.join(
-                        self.hparams.generated_gestures_dir, 
-                        phase, save_format)) # e.g. <results>/<run_name>/generated_gestures/test/videos
-                except:
-                    print("-----------------------------------------------------------------------")
-                    print(f"WARNING: cannot create '{save_format}' directory for saving model outputs.")
-                    print("Perhaps the save formats are duplicated?")
-                    print(f"\t(enabled formats: {self.hparams.prediction_save_formats})")
-                    print("-----------------------------------------------------------------------")
-                    sleep(1)
+                    save_dir_path = path.join(self.hparams.generated_gestures_dir, 
+                        phase, save_format)
+                    if not os.path.isdir(save_dir_path):
+                        try:
+                            os.makedirs(save_dir_path) # e.g. <results>/<run_name>/generated_gestures/test/videos
+                        except:
+                            print("-----------------------------------------------------------------------")
+                            print(f"WARNING: cannot create '{save_format}' directory for saving model outputs.")
+                            print("Perhaps the save formats are duplicated?")
+                            print(f"\t(enabled formats: {self.hparams.prediction_save_formats})")
+                            print("-----------------------------------------------------------------------")
+                            sleep(1)
 
     def generate_training_predictions(self):
         """Predict gestures for the training input and save the results."""
@@ -136,7 +137,7 @@ class PredictionSavingMixin(ABC):
                 # Crop and add the batch dimension
                 audio = audio_full[start_frame:end_frame].unsqueeze(0) 
                 text = text_full[start_frame:end_frame].unsqueeze(0)
-
+                
                 predicted_gestures = self.forward(
                     audio, text, use_conditioning=True, 
                     motion=None).cpu().detach().numpy()
@@ -159,11 +160,8 @@ class PredictionSavingMixin(ABC):
         Load an input sequence that will be used during training or validation,
         and crop it to the given duration in the 'saved_prediction_duration_sec' hyperparameter.
         """
-        # We have to put the data on the same device as the model
-        device = self.encode_speech[0].weight.device
-        
-        audio = torch.as_tensor(input_array['audio'], device=device)
-        text = torch.as_tensor(input_array['text'], device=device)
+        audio = torch.as_tensor(input_array['audio'], device=self.device)
+        text = torch.as_tensor(input_array['text'], device=self.device)
         
         # Crop the data to the required duration and add back the batch_dimension
         audio = audio[:self.hparams.saved_prediction_duration_frames].unsqueeze(0)
@@ -192,11 +190,8 @@ class PredictionSavingMixin(ABC):
         input_path = path.join(
             self.hparams.data_dir, "test_inputs", filename)
 
-        # We have to put the data on the same device as the model
-        device = self.encode_speech[0].weight.device
-
         input_tensor = torch.as_tensor(
-            torch.from_numpy(np.load(input_path)), device = device)
+            torch.from_numpy(np.load(input_path)), device=self.device)
         
         return input_tensor.float()
 
