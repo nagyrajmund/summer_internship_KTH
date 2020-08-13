@@ -17,7 +17,7 @@ class PredictionSavingMixin(ABC):
     loss function doesn't capture it that well.
     """
     def init_prediction_saving_params(self):
-        """Load the input data, create the output directories and the necessary parameters."""
+        """Create the output directories and initialize the parameters."""
         # Convert the prediction durations to frames
         self.hparams.saved_prediction_duration_frames = \
             self.hparams.past_context \
@@ -28,7 +28,7 @@ class PredictionSavingMixin(ABC):
             self.hparams.generated_gestures_dir = path.join(self.save_dir, "generated_gestures")
         
         # Check which phases is the prediction generation enabled in
-        enabled_phases = []
+        self.enabled_phases = []
         
         self.last_saved_train_prediction_epoch = 0
         self.last_saved_val_prediction_epoch = 0
@@ -38,35 +38,21 @@ class PredictionSavingMixin(ABC):
         self.save_val_predictions = False
         # Training
         if self.hparams.save_train_predictions_every_n_epoch > 0:
-            enabled_phases.append("training")
-
+            self.enabled_phases.append("training")
             self.save_train_predictions = True
-            # Load the first training sequence as input
-            self.train_input = \
-                self.load_train_or_val_input(self.train_dataset[0])
-          
+
         # Validation
         if self.hparams.save_val_predictions_every_n_epoch > 0:
-            enabled_phases.append("validation")
+            self.enabled_phases.append("validation")
             self.save_val_predictions = True
-            # Load the first validation sequence as input
-            # NOTE: test_dataset contains predefined validation sequences,
-            #       so we don't touch the actual test data here!
-            # TODO: rename test_dataset...
-            self.val_input = \
-                self.load_train_or_val_input(self.test_dataset[5]) # TODO magic number (longest validation sequence)        
-        
+  
         # Testing
         if self.hparams.generate_semantic_test_predictions \
         or self.hparams.generate_random_test_predictions:
-            enabled_phases.append("test")
+            self.enabled_phases.append("test")
 
-            self.test_prediction_inputs = {
-                '04': self.load_test_prediction_input('04'),
-                '05': self.load_test_prediction_input('05')}
-        
         # Create the output directories
-        for phase in enabled_phases: 
+        for phase in self.enabled_phases: 
             for save_format in self.hparams.prediction_save_formats:
                     # make the directory name plural
                     save_format = save_format + 's' if not save_format.endswith('s') else save_format
