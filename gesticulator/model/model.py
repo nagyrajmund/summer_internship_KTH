@@ -66,8 +66,8 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
             mean_pose_file:  the path to the saved mean pose numpy array (only required in inference mode)
         """
         super().__init__()
+        self.save_hyperparameters(args)
 
-        self.hyper_params = args
         if inference_mode:
             if audio_dim is None or mean_pose_file is None:
                 print("ERROR: Please provide the 'audio_dim' and the 'mean_pose_file' parameters for GesticulatorModel when using inference mode!")
@@ -83,23 +83,27 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
             self.audio_dim = self.train_dataset.audio_dim
             self.calculate_mean_pose()
 
-        self.construct_layers(args)
+        self.construct_layers(self.hparams)
         self.init_layers()
         
-        if not inference_mode:
-            self.init_prediction_saving_params()
-
         self.rnn_is_initialized = False
         self.loss = nn.MSELoss()
         self.teaching_freq = 0
     
+    def setup(self, stage):
+        """ 
+        Called at the beginning of trainer.fit() and trainer.test().
+        """
+        self.init_prediction_saving_params()
+
+
     def load_datasets(self):
         try:
-            self.train_dataset = SpeechGestureDataset(self.hyper_params.data_dir, self.hyper_params.use_pca, train=True)
-            self.val_dataset   = SpeechGestureDataset(self.hyper_params.data_dir, self.hyper_params.use_pca, train=False)
-            self.test_dataset  = ValidationDataset(self.hyper_params.data_dir)
+            self.train_dataset = SpeechGestureDataset(self.hparams.data_dir, self.hparams.use_pca, train=True)
+            self.val_dataset   = SpeechGestureDataset(self.hparams.data_dir, self.hparams.use_pca, train=False)
+            self.test_dataset  = ValidationDataset(self.hparams.data_dir)
         except FileNotFoundError as err:
-            abs_data_dir = os.path.abspath(self.hyper_params.data_dir)
+            abs_data_dir = os.path.abspath(self.hparams.data_dir)
             if not os.path.isdir(abs_data_dir):
                 print(f"ERROR: The given dataset directory {abs_data_dir} does not exist!")
                 print("Please, set the correct path with the --data_dir option!")
@@ -109,12 +113,11 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
     
     def create_result_folder(self):
         """Create the <results>/<run_name> folder."""
-        run_name = self.hyper_params.run_name
-        self.save_dir = path.join(self.hyper_params.result_dir, run_name)
-
+        run_name = self.hparams.run_name
+        self.save_dir = path.join(self.hparams.result_dir, run_name)
         # Clear the save directory for this run if it exists
         if path.isdir(self.save_dir):
-            if run_name == 'last_run' or self.hyper_params.no_overwrite_warning:
+            if run_name == 'last_run' or self.hparams.no_overwrite_warning:
                 rmtree(self.save_dir)
             else:
                 print(f"WARNING: Result directory '{self.save_dir}' already exists!", end=' ')
@@ -126,7 +129,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
                     rmtree(self.save_dir)
                 else:
                     exit(-1)
-    
+
     def construct_layers(self, args):
         """Construct the layers of the model."""
         if args.activation == "LeakyReLU":
@@ -222,7 +225,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
     def train_dataloader(self):
         loader = torch.utils.data.DataLoader(
             dataset=self.train_dataset,
-            batch_size=self.hyper_params.batch_size,
+            batch_size=self.hparams.batch_size,
             shuffle=True)
             
         return loader
@@ -230,7 +233,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
     def val_dataloader(self):
         loader = torch.utils.data.DataLoader(
             dataset=self.val_dataset,
-            batch_size=self.hyper_params.batch_size,
+            batch_size=self.hparams.batch_size,
             shuffle=False)
 
         return loader
@@ -244,7 +247,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         return loader
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hyper_params.learning_rate)
+        return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
 
     # ----------- Model -----------
 
@@ -267,24 +270,24 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         motion_seq = None
 
         # initialize RNN state if needed
-        if self.hyper_params.use_recurrent_speech_enc and (not self.rnn_is_initialized or motion is None):
+        if self.hparams.use_recurrent_speech_enc and (not self.rnn_is_initialized or motion is None):
             self.initialize_rnn_hid_state()
         # initialize all the previous poses with the mean pose
         init_poses = np.array([self.mean_pose for it in range(audio.shape[0])])
         # we have to put these Tensors to the same device as the model because 
         # numpy arrays are always on the CPU
         # store the 3 previous poses
-        prev_poses = [torch.from_numpy(init_poses).to(audio.device)] * 3
+        prev_poses = [torch.from_numpy(init_poses).to(self.device)] * 3
         
-        past_context   = self.hyper_params.past_context
-        future_context = self.hyper_params.future_context
+        past_context   = self.hparams.past_context
+        future_context = self.hparams.future_context
         for time_st in range(past_context, audio.shape[1] - future_context):
             # take current audio and text of the speech
             curr_audio = audio[:, time_st - past_context:time_st+future_context]
             curr_text = text[:, time_st-past_context:time_st+future_context]
             curr_speech = torch.cat((curr_audio, curr_text), 2)
             # encode speech
-            if self.hyper_params.use_recurrent_speech_enc:
+            if self.hparams.use_recurrent_speech_enc:
                 speech_encoding_full, hh = self.encode_speech(curr_speech)
             else:
                 speech_encoding_full = self.encode_speech(curr_speech)
@@ -294,10 +297,10 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
 
             if use_conditioning:
                 # Take several previous poses for conditioning
-                if self.hyper_params.n_prev_poses == 3:
+                if self.hparams.n_prev_poses == 3:
                     pose_condition_info = torch.cat((prev_poses[-1], prev_poses[-2],
                                                      prev_poses[-3]), 1)
-                elif self.hyper_params.n_prev_poses == 2:
+                elif self.hparams.n_prev_poses == 2:
                     pose_condition_info = torch.cat((prev_poses[-1], prev_poses[-2]), 1)
                 else:
                     pose_condition_info = prev_poses[-1]
@@ -310,7 +313,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
 
             first_h = self.first_layer(speech_enc_reduced)
             first_o = self.FiLM(conditioning_vector_1, first_h,
-                                self.hyper_params.first_l_sz, use_conditioning)
+                                self.hparams.first_l_sz, use_conditioning)
             # torch.cat((first_h, speech_enc_reduced), 1) #self.FiLM(conditioning_vector_1, first_h, self.hidden_size)
 
             if self.n_layers == 1:
@@ -391,7 +394,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         actual_speed = y[1:] - y[:-1]
         vel_loss = self.loss(pred_speed, actual_speed)
 
-        return [self.loss(y_hat, y), vel_loss * self.hyper_params.vel_coef]
+        return [self.loss(y_hat, y), vel_loss * self.hparams.vel_coef]
 
     def val_loss(self, y_hat, y):
         # calculate corresponding speed
@@ -426,7 +429,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
 
         # remove last frames which had no future info and hence were not predicted
         true_gesture = true_gesture[:,  
-                       self.hyper_params.past_context:-self.hyper_params.future_context]
+                       self.hparams.past_context:-self.hparams.future_context]
         
         # Get training loss
         mse_loss, vel_loss = self.tr_loss(predicted_gesture, true_gesture)
@@ -449,7 +452,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
     def training_epoch_end(self, outputs):
         elapsed_epochs = self.current_epoch - self.last_saved_train_prediction_epoch 
         
-        if self.save_train_predictions and elapsed_epochs >= self.hyper_params.save_train_predictions_every_n_epoch:
+        if self.save_train_predictions and elapsed_epochs >= self.hparams.save_train_predictions_every_n_epoch:
             self.last_saved_train_prediction_epoch = self.current_epoch
             self.generate_training_predictions()
 
@@ -465,7 +468,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
 
         # remove last frame which had no future info
         true_gesture = true_gesture[:,
-                       self.hyper_params.past_context:-self.hyper_params.future_context]
+                       self.hparams.past_context:-self.hparams.future_context]
 
         val_loss = self.val_loss(predicted_gesture, true_gesture)
 
@@ -482,7 +485,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         """
         elapsed_epochs = self.current_epoch - self.last_saved_val_prediction_epoch 
         
-        if self.save_val_predictions and elapsed_epochs >= self.hyper_params.save_val_predictions_every_n_epoch:
+        if self.save_val_predictions and elapsed_epochs >= self.hparams.save_val_predictions_every_n_epoch:
             self.last_saved_val_prediction_epoch = self.current_epoch
             self.generate_validation_predictions()
 
@@ -501,10 +504,10 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         return {'test_example': predicted_gesture}
 
     def test_epoch_end(self, outputs):
-        if self.hyper_params.generate_semantic_test_predictions:
+        if self.hparams.generate_semantic_test_predictions:
             self.generate_test_predictions(mode='semantic')
         
-        if self.hyper_params.generate_random_test_predictions:
+        if self.hparams.generate_random_test_predictions:
             self.generate_test_predictions(mode='random')
 
         test_mean = outputs[0]['test_example'].mean()
