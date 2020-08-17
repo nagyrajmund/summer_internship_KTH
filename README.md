@@ -23,6 +23,10 @@ pip install -e gesticulator/visualization
 
 For all the scripts which we refer to in this repo description there are several command line arguments which you can see by calling them with the `--help` argument.
 
+## Demo
+Head over to the `demo` folder for a quick demonstration if you're not interested in training the model yourself.
+
+
 ## Loading and saving models
 - Pretrained model files can be loaded with the following command
   ```
