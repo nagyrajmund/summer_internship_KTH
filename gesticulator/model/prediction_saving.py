@@ -121,7 +121,7 @@ class PredictionSavingMixin(ABC):
             exit(-1)
             
         print(f"\nGenerating {mode} test gestures:", flush=True)
-
+        segment_lengths_sec = 10
         duration_in_frames = segment_lengths_sec * self.data_fps \
                              + self.hparams.past_context \
                              + self.hparams.future_context 
