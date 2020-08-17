@@ -60,7 +60,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         Args:
             args:            command-line arguments, see add_model_specific_args() for details
             inference_mode:  if True, then construct the model without loading the datasets into memory
-                             this is a necessary workaround for loading the model # TODO(RN): this should be fixed with the latest PL version
+                             this is a necessary workaround for loading the model
             
             audio_dim:       the dimensionality of the audio features (only required in inference mode)
             mean_pose_file:  the path to the saved mean pose numpy array (only required in inference mode)
@@ -101,7 +101,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         try:
             self.train_dataset = SpeechGestureDataset(self.hparams.data_dir, self.hparams.use_pca, train=True)
             self.val_dataset   = SpeechGestureDataset(self.hparams.data_dir, self.hparams.use_pca, train=False)
-            self.test_dataset  = ValidationDataset(self.hparams.data_dir)
+            self.test_dataset  = ValidationDataset(self.hparams.data_dir, self.hparams.past_context, self.hparams.future_context)
         except FileNotFoundError as err:
             abs_data_dir = os.path.abspath(self.hparams.data_dir)
             if not os.path.isdir(abs_data_dir):
@@ -338,7 +338,6 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
             first_h = self.first_layer(speech_enc_reduced)
             first_o = self.FiLM(conditioning_vector_1, first_h,
                                 self.hparams.first_l_sz, use_conditioning)
-            # torch.cat((first_h, speech_enc_reduced), 1) #self.FiLM(conditioning_vector_1, first_h, self.hidden_size)
 
             if self.n_layers == 1:
                 final_h = first_o
@@ -355,7 +354,6 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
 
             if motion is not None and use_teacher_forcing and time_st % self.teaching_freq < 2:
                 # teacher forcing
-                # TODO(RN): refactor into a list (prev_poses = [prev_prev_prev, prev_prev, prev])
                 prev_poses[-3] = motion[:, time_st - 2, :]
                 prev_poses[-2] = motion[:, time_st - 1, :]
                 prev_poses[-1] = motion[:, time_st, :]

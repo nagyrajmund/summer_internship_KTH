@@ -61,12 +61,14 @@ class SpeechGestureDataset(Dataset):
 class ValidationDataset(Dataset):
     """Validation samples from the Trinity Speech-Gesture Dataset."""
 
-    def __init__(self, root_dir):
+    def __init__(self, root_dir, past_context, future_context):
         """
         Args:
             root_dir (string): Directory with the datasat.
         """
         self.root_dir = root_dir
+        self.past_context = past_context
+        self.future_context = future_context
         # Get the data
         self.audio = np.load(path.join(root_dir, 'dev_inputs', 'X_dev_NaturalTalking_01.npy')).astype(np.float32)
         self.text = np.load(path.join(root_dir, 'dev_inputs', 'T_dev_NaturalTalking_01.npy')).astype(np.float32)
@@ -86,9 +88,8 @@ class ValidationDataset(Dataset):
         
         start = int(self.start_times[idx] * 20) # 20fps
         end = int(self.end_times[idx] * 20)  # 20fps
-        # TODO: hard-coded context lengths!
-        audio = self.audio[start-10:end+20]
-        text = self.text[start-10:end+20]
+        audio = self.audio[start-self.past_context : end+self.future_context]
+        text = self.text[start-self.past_context : end+self.future_context]
 
         sample = {'audio': audio, 'text': text}
 
