@@ -15,8 +15,7 @@ def main(args):
 
     # 1. Load the model
     model = GesticulatorModel.load_from_checkpoint(
-        args.model_file, inference_mode=True, audio_dim=audio_dim, mean_pose_file=args.mean_pose_file)
-    
+        args.model_file, inference_mode=True)
     # This interface is a wrapper around the model for predicting new gestures conveniently
     gp = GesturePredictor(model, feature_type)
 

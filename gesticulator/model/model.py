@@ -55,32 +55,21 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
   
     # ----------- Initialization -----------
 
-    def __init__(self, args, inference_mode=False, audio_dim=None, mean_pose_file=None):
+    def __init__(self, args, inference_mode=False):
         """ Constructor.
         Args:
             args:            command-line arguments, see add_model_specific_args() for details
-            inference_mode:  if True, then construct the model without loading the datasets into memory
-                             this is a necessary workaround for loading the model
-            
-            audio_dim:       the dimensionality of the audio features (only required in inference mode)
-            mean_pose_file:  the path to the saved mean pose numpy array (only required in inference mode)
+            inference_mode:  if True, then construct the model without loading the datasets into memory (used for loading saved models)
         """
         super().__init__()
         self.save_hyperparameters(args)
 
-        if inference_mode:
-            if audio_dim is None or mean_pose_file is None:
-                print("ERROR: Please provide the 'audio_dim' and the 'mean_pose_file' parameters for GesticulatorModel when using inference mode!")
-                exit(-1)
-            
-            self.audio_dim = audio_dim
-            self.mean_pose = np.load(mean_pose_file)
-        else:
+        if not inference_mode:
             self.create_result_folder()
             # The datasets are loaded in this constructor because they contain 
             # necessary information for building the layers (namely the audio dimensionality)
             self.load_datasets()
-            self.audio_dim = self.train_dataset.audio_dim
+            self.hparams.audio_dim = self.train_dataset.audio_dim
             self.calculate_mean_pose()
 
         self.construct_layers(self.hparams)
@@ -181,7 +170,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
             self.encode_speech = nn.GRU(self.train_dataset.audio_dim + self.text_dim, self.gru_size, 2,
                                         dropout=args.dropout, bidirectional=True)
         else:
-            self.encode_speech = nn.Sequential(nn.Linear(self.audio_dim + self.text_dim,
+            self.encode_speech = nn.Sequential(nn.Linear(self.hparams.audio_dim + self.text_dim,
                                                args.speech_enc_frame_dim * 2), self.activation,
                                                nn.Dropout(args.dropout), nn.Linear(args.speech_enc_frame_dim*2,
                                                                                    args.speech_enc_frame_dim),
@@ -209,11 +198,11 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         self.conditioning_1.apply(weights_init_zeros)
 
     def calculate_mean_pose(self):
-        self.mean_pose = np.mean(self.val_dataset.gesture, axis=(0, 1))
-        np.save("./utils/mean_pose.npy", self.mean_pose)
+        self.hparams.mean_pose = np.mean(self.val_dataset.gesture, axis=(0, 1))
+        np.save("./utils/mean_pose.npy", self.hparams.mean_pose)
 
     def load_mean_pose(self):
-        self.mean_pose = np.load("./utils/mean_pose.npy")
+        self.hparams.mean_pose = np.load("./utils/mean_pose.npy")
 
     def initialize_rnn_hid_state(self):
         """Initialize the hidden state for the RNN."""
@@ -297,7 +286,7 @@ class GesticulatorModel(pl.LightningModule, PredictionSavingMixin):
         if self.hparams.use_recurrent_speech_enc and (not self.rnn_is_initialized or motion is None):
             self.initialize_rnn_hid_state()
         # initialize all the previous poses with the mean pose
-        init_poses = np.array([self.mean_pose for it in range(audio.shape[0])])
+        init_poses = np.array([self.hparams.mean_pose for it in range(audio.shape[0])])
         # we have to put these Tensors to the same device as the model because 
         # numpy arrays are always on the CPU
         # store the 3 previous poses
