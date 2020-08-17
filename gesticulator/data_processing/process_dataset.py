@@ -48,7 +48,7 @@ def _encode_vectors(audio_filename, gesture_filename, text_filename, embedding_m
     elif mode == 'train':
         seq_length = args.seq_len
     elif mode == 'dev':
-        seq_length = 5 * args.seq_len # TODO(RN): magic number
+        seq_length = 5 * args.seq_len
     else:
         print(f"ERROR: Unknown dataset type '{mode}'! Possible values: 'train', 'dev' and 'test'.")
         exit(-1)

@@ -14,7 +14,6 @@ from os import path
 from gesticulator.data_processing.data_params import dataset_argparser
 
 # Indices for train/dev/test split
-# TODO(RN): These globals should be removed
 DEV_LAST_ID = 3
 TEST_LAST_ID = 6
 TRAIN_LAST_ID = 31
