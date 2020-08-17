@@ -13,10 +13,11 @@ def main(args):
     # 0. Check feature type based on the model
     feature_type, audio_dim = check_feature_type(args.model_file)
 
-    # 1. Load the model and create the gesture predicting interface
+    # 1. Load the model
     model = GesticulatorModel.load_from_checkpoint(
         args.model_file, inference_mode=True, audio_dim=audio_dim, mean_pose_file=args.mean_pose_file)
     
+    # This interface is a wrapper around the model for predicting new gestures conveniently
     gp = GesturePredictor(model, feature_type)
 
     # 2. Predict the gestures with the loaded model

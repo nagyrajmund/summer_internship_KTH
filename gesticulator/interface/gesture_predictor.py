@@ -88,13 +88,13 @@ class GesturePredictor:
     def _get_text_input_type(self, text):
         if os.path.isfile(text):
             if text.endswith('.json'):
-                print("json path")
+                print("Using time-annotated JSON transcription at", text)
                 return self.TextInputType.JSON_PATH
             else:
-                print("text path")
+                print("Using plaintext transcription at", text)
                 return self.TextInputType.TEXT_PATH
         else:
-            print("plain text")
+            print("Using plaintext transcription:", text)
             return self.TextInputType.TEXT
    
     def _add_feature_padding(self, audio, text):
@@ -232,7 +232,10 @@ class GesturePredictor:
             5) the pronunciation speed of the current word (number of syllables per decisecond)
             
         so that the word length is proportional to the number of syllables in it.
+        
+        NOTE: Currently this is only implemented for FastText.
         """
+        print("Estimating word timings using syllable count.")
         # The fillers will be encoded with the same vector
         filler_encoding  = self.embedding["ah"] 
         fillers = ["eh", "ah", "like", "kind of"]
@@ -279,7 +282,9 @@ class GesturePredictor:
             w_speed = word_num_syl / w_duration if w_duration > 0 else 10 # Because 10 FPS
             w_start = elapsed_deciseconds
             w_end   = w_start + w_duration
-            print("Word: {} | Duration: {} | #Syl: {} | time: {}-{}".format(curr_word, w_duration, word_num_syl, w_start, w_end))            
+            
+            # print("Word: {} | Duration: {} | #Syl: {} | time: {}-{}".format(curr_word, w_duration, word_num_syl, w_start, w_end))            
+            
             while elapsed_deciseconds < w_end:
                 elapsed_deciseconds += 1
                 
