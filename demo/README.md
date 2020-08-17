@@ -14,3 +14,8 @@ Please note that the model was trained using time-annotated JSON text transcript
 ```bash
 python demo.py inputs/audio.wav "This is a text transcription provided on the command line"
 ```
+
+For further instructions, please run
+```bash
+python demo.py --help
+``
