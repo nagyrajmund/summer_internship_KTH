@@ -91,15 +91,15 @@ def truncate_audio(input_path, target_duration_sec):
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument('--audio', type=str, default="input/audio.wav", help="path to the input speech recording")
-    parser.add_argument('--text', type=str, default="input/text.txt",
+    parser.add_argument('--audio', type=str, default="input/jeremy_howard.wav", help="path to the input speech recording")
+    parser.add_argument('--text', type=str, default="input/jeremy_howard.json",
                         help="one of the following: "
                              "1) path to a time-annotated JSON transcription (this is what the model was trained with) "
                              "2) path to a plaintext transcription, or " 
                              "3) the text transcription itself (as a string)")
     parser.add_argument('--video_out', '-video', type=str, default="output/generated_motion.mp4",
                         help="the path where the generated video will be saved.")
-    parser.add_argument('--model_file', '-model', type=str, default="models/fasttext_prosody.ckpt",
+    parser.add_argument('--model_file', '-model', type=str, default="models/default.ckpt",
                         help="path to a pretrained model checkpoint")
     parser.add_argument('--mean_pose_file', '-mean_pose', type=str, default="../gesticulator/utils/mean_pose.npy",
                         help="path to the mean pose in the dataset (saved as a .npy file)")
