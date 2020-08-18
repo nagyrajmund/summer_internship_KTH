@@ -2,3 +2,5 @@
 *
 # Except this file
 !.gitignore
+# And the example video
+!example.mp4
