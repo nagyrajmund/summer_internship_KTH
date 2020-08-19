@@ -1,3 +1,4 @@
+import regex as re
 from math import ceil
 from enum import Enum, auto
 import os.path
@@ -88,13 +89,13 @@ class GesturePredictor:
     def _get_text_input_type(self, text):
         if os.path.isfile(text):
             if text.endswith('.json'):
-                print("Using time-annotated JSON transcription at", text)
+                print(f"Using time-annotated JSON transcription '{text}'")
                 return self.TextInputType.JSON_PATH
             else:
-                print("Using plaintext transcription at", text)
+                print(f"Using plaintext transcription '{text}'")
                 return self.TextInputType.TEXT_PATH
         else:
-            print("Using plaintext transcription:", text)
+            print(f"Using plaintext transcription: '{text}'")
             return self.TextInputType.TEXT
    
     def _add_feature_padding(self, audio, text):
@@ -217,25 +218,168 @@ class GesturePredictor:
                 text = file.read()
 
         # At this point 'text' contains the input transcription as a string
-        text_features = self._estimate_word_timings(text, audio_len_frames)
+        if isinstance(self.embedding, BertEmbedding):
+            return self._estimate_word_timings_bert(text, audio_len_frames)
+        elif isinstance(self.embedding, FastText):
+            return self._estimate_word_timings_fasttext(text, audio_len_frames)
+        else:
+            print('ERROR: Unknown embedding: ', self.embedding)
+            exit(-1)
                 
         return text_features
 
-    def _estimate_word_timings(self, text, total_duration_frames):
+    def _estimate_word_timings_bert(self, text, total_duration_frames):
         """
-        Assuming 10 FPS and the given length, estimate the following features:
+        This is a convenience functions that enables the model to work with plaintext 
+        transcriptions in place of a time-annotated JSON file from Google Speech-to-Text.
 
-            1) elapsed time since the beginning of the current word 
-            2) remaining time from the current word
-            3) the duration of the current word
-            4) the progress as the ratio 'elapsed_time / duration'
-            5) the pronunciation speed of the current word (number of syllables per decisecond)
-            
-        so that the word length is proportional to the number of syllables in it.
+        It does the following two things:
         
-        NOTE: Currently this is only implemented for FastText.
+            1) Encodes the given text into word vectors using BERT embedding
+            
+            2) Assuming 10 FPS and the given length, estimates the following features for each frame:
+                - elapsed time since the beginning of the current word 
+                - remaining time from the current word
+                - the duration of the current word
+                - the progress as the ratio 'elapsed_time / duration'
+                - the pronunciation speed of the current word (number of syllables per decisecond)
+               so that the word length is proportional to the number of syllables in it.
+        
+        Args: 
+            text:  the plaintext transcription
+            total_duration_frames:  the total duration of the speech (in frames)
+
+            # NOTE: Please make sure that 'text' has correct punctuation! 
+            #       In particular, it should end with a delimiter. 
+        
+        Returns:
+            output_features:  a numpy array of shape (1, total_duration_frames, 773)
+                              containing the text features
         """
-        print("Estimating word timings using syllable count.")
+        # 0) Split the input text into sentences
+        delimiters = ['.', '!', '?']
+        # The pattern means "any of the delimiters". 
+        # The parantheses prevent the delimiters from disappearing when splitting
+        pattern = "([.!?])"  
+        split_text = re.split(pattern, text)
+        # split_text now contains each sentence with the delimiters in between
+        # and the last element is an empty string
+        sentences = [sentence + delimiter for sentence, delimiter 
+                     in zip(split_text[:-1:2], split_text[1:-1:2])]
+                     # The odd indices in split_text are sentences, the even indices are delimiters
+                     # And the last element is an empty string which will be ignored
+        # 1) Count the total number of syllables in the text
+        #    (we will use this when we calculate the word lengths)
+        total_n_syllables = 0
+        # The number of syllables of every word in every sentence
+        word_n_syllables_in_sentences = []
+        for sentence in sentences:
+            word_n_syllables_in_sentences.append([])
+            for word in sentence.split():
+                curr_n_syllables = count_syllables(word)
+                total_n_syllables += curr_n_syllables
+                # Append the syllable count to the latest sentence
+                word_n_syllables_in_sentences[-1].append(curr_n_syllables)
+        
+        fillers = ["eh", "ah", "like", "kind of"]
+        filler_encoding = self.embedding(["eh, ah, like, kind of"])[0][1][0]
+        elapsed_deciseconds = 0
+        output_features = []
+        
+        for sentence_idx, sentence in enumerate(sentences):
+            # 2) Filter out the filler words from each sentence
+            sentence_without_fillers = []
+            sentence_words = sentence.split()
+            
+            for word in sentence_words:
+                if word not in fillers:
+                    # The last character might be a delimiter or comma
+                    if word[:-1] not in fillers:
+                        sentence_without_fillers.append(word)
+                    # If the last character of a filler word is a delimiter, then
+                    # we consider it a separate word
+                    # However, we ignore commas and other non-delimiter tokens
+                    elif word[-1] in delimiters:
+                        sentence_without_fillers.append(word[-1])           
+            
+            # 3) After the sentence is over, feed it whole into BERT (without fillers)
+            # Concatenate the words using space as a separator
+            original_input = [' '.join(sentence_without_fillers)]
+            input_to_bert, encoded_words_in_sentence = self.embedding(original_input)[0]
+            
+            if input_to_bert[-1] not in delimiters:
+                print("ERROR: missing delimiter in input to BERT!")
+                print("The current sentence:", original_input)
+                print("The input to BERT:", input_to_bert)
+                exit(-1)
+            
+            if len(sentence_words) != len(word_n_syllables_in_sentences[sentence_idx]):
+                print(f"""Error, sentence words has different length than numbers of syllables:
+                    Number of words: {len(sentence_words)} | number of syllables: {len(word_n_syllables_in_sentences[sentence_idx])}
+                    {sentence_words}
+                    {word_n_syllables_in_sentences[sentence_idx]}
+                    """)
+                exit(-1)
+
+            # 4) Go through the sentence again, this time with filler words
+            #    and append: - the embedded words from BERT
+            #                - the 5 extra features that we estimate using the syllable count
+            sentence_syllables = word_n_syllables_in_sentences[sentence_idx]
+            for curr_word, curr_encoding, curr_n_syllables in zip(sentence_words, encoded_words_in_sentence, sentence_syllables):
+                
+                if curr_n_syllables == 0:
+                    raise Exception(f"Error, word '{curr_word}' has 0 syllables!")
+
+                # We take the ceiling to not lose information
+                # (if the text was shorter than the audio because of rounding errors, then
+                #  the audio would be cropped to the text's length)
+                w_duration = ceil(total_duration_frames * curr_n_syllables / total_n_syllables)
+                w_speed = curr_n_syllables / w_duration if w_duration > 0 else 10 # Because 10 FPS
+                w_start = elapsed_deciseconds
+                w_end   = w_start + w_duration
+                # print("Word: {} | Duration: {} | #Syl: {} | time: {}-{}".format(curr_word, w_duration, curr_n_syllables, w_start, w_end))            
+                while elapsed_deciseconds < w_end:
+                    elapsed_deciseconds += 1
+                    
+                    w_elapsed_time = elapsed_deciseconds - w_start
+                    w_remaining_time = w_duration - w_elapsed_time + 1
+                    w_progress = w_elapsed_time / w_duration
+                    
+                    frame_features = [ w_elapsed_time,
+                                       w_remaining_time,
+                                       w_duration,
+                                       w_progress,
+                                       w_speed ]
+
+                    output_features.append(list(curr_encoding) + frame_features)
+    
+        return np.array(output_features)
+
+    def _estimate_word_timings_fasttext(self, text, total_duration_frames):
+        """
+        This is a convenience functions that enables the model to work with plaintext 
+        transcriptions in place of a time-annotated JSON file from Google Speech-to-Text.
+
+        It does the following two things:
+        
+            1) Encodes the given text into word vectors using FastText embedding
+            
+            2) Assuming 10 FPS and the given length, estimates the following features for each frame:
+                - elapsed time since the beginning of the current word 
+                - remaining time from the current word
+                - the duration of the current word
+                - the progress as the ratio 'elapsed_time / duration'
+                - the pronunciation speed of the current word (number of syllables per decisecond)
+               so that the word length is proportional to the number of syllables in it.
+        
+        Args: 
+            text:  the plaintext transcription
+            total_duration_frames:  the total duration of the speech (in frames)
+
+        Returns:
+            feature_array:  a numpy array of shape (305, n_frames) that contains the text features
+        """
+        print("Estimating word timings with FastText, using syllable count.")
         # The fillers will be encoded with the same vector
         filler_encoding  = self.embedding["ah"] 
         fillers = ["eh", "ah", "like", "kind of"]
@@ -264,26 +408,26 @@ class GesturePredictor:
                     words.append(number_word)
                     n_syllables.append(count_syllables(number_word))
         
-        total_num_syl = sum(n_syllables)
+        total_n_syllables = sum(n_syllables)
         elapsed_deciseconds = 0       
         # Shape of (batch_size, frame_length, 305)
         feature_array = []
 
-        for curr_word, word_num_syl in zip(words, n_syllables):
+        for curr_word, word_n_syllables in zip(words, n_syllables):
             # The estimated word durations are proportional to the number of syllables in the word
-            if word_num_syl == 0:
+            if word_n_syllables == 0:
                 raise Exception(f"Error, word '{curr_word}' has 0 syllables!")
 
             word_encoding = self.embedding[curr_word]
             # We take the ceiling to not lose information
             # (if the text was shorter than the audio because of rounding errors, then
             #  the audio would be cropped to the text's length)
-            w_duration = ceil(total_duration_frames * word_num_syl / total_num_syl)
-            w_speed = word_num_syl / w_duration if w_duration > 0 else 10 # Because 10 FPS
+            w_duration = ceil(total_duration_frames * word_n_syllables / total_n_syllables)
+            w_speed = word_n_syllables / w_duration if w_duration > 0 else 10 # Because 10 FPS
             w_start = elapsed_deciseconds
             w_end   = w_start + w_duration
             
-            # print("Word: {} | Duration: {} | #Syl: {} | time: {}-{}".format(curr_word, w_duration, word_num_syl, w_start, w_end))            
+            # print("Word: {} | Duration: {} | #Syl: {} | time: {}-{}".format(curr_word, w_duration, word_n_syllables, w_start, w_end))            
             
             while elapsed_deciseconds < w_end:
                 elapsed_deciseconds += 1

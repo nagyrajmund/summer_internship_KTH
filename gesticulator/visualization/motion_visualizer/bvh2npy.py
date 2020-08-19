@@ -13,7 +13,6 @@ def convert_bvh2npy(bvh_file, npy_file):
     left_arm = all_coords[:,28:31]
 
     modeled_coords = np.concatenate((torso, right_arm, left_arm), axis=1)
-    print(modeled_coords.shape)
 
     np.save(npy_file, modeled_coords)
 
