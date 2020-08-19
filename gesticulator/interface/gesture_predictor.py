@@ -75,11 +75,11 @@ class GesturePredictor:
 
     def _create_embedding(self, text_dim):
         if text_dim == 773:
-            print("Creating bert embedding for GesturePredictor interface...")
+            print("Using BERT embedding.")
             return BertEmbedding(max_seq_length=100, model='bert_12_768_12', 
                                            dataset_name='book_corpus_wiki_en_cased')
         elif text_dim == 305:
-            print("Creating FastText embedding for GesturePredictor interface...")
+            print("Using FastText embedding.")
             return FastText()
         else:
             print(f"ERROR: Unexpected text dimensionality ({model.text_dim})!")
@@ -256,6 +256,7 @@ class GesturePredictor:
             output_features:  a numpy array of shape (1, total_duration_frames, 773)
                               containing the text features
         """
+        print("Estimating word timings with BERT using syllable count.")
         # 0) Split the input text into sentences
         delimiters = ['.', '!', '?']
         # The pattern means "any of the delimiters". 
@@ -268,6 +269,8 @@ class GesturePredictor:
                      in zip(split_text[:-1:2], split_text[1:-1:2])]
                      # The odd indices in split_text are sentences, the even indices are delimiters
                      # And the last element is an empty string which will be ignored
+        text = "".join(sentences)
+        print(f'\nInput text:\n"{text}"')
         # 1) Count the total number of syllables in the text
         #    (we will use this when we calculate the word lengths)
         total_n_syllables = 0
@@ -309,6 +312,7 @@ class GesturePredictor:
             
             if input_to_bert[-1] not in delimiters:
                 print("ERROR: missing delimiter in input to BERT!")
+                print("\nNOTE: Please make sure that the input text ends with a punctuation mark (. ? or !)")
                 print("The current sentence:", original_input)
                 print("The input to BERT:", input_to_bert)
                 exit(-1)
@@ -379,7 +383,9 @@ class GesturePredictor:
         Returns:
             feature_array:  a numpy array of shape (305, n_frames) that contains the text features
         """
-        print("Estimating word timings with FastText, using syllable count.")
+        print("Estimating word timings with FastText using syllable count.")
+        print(f'\nInput text:\n"{text}"')
+
         # The fillers will be encoded with the same vector
         filler_encoding  = self.embedding["ah"] 
         fillers = ["eh", "ah", "like", "kind of"]

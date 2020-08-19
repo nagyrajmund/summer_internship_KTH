@@ -123,6 +123,9 @@ def encode_json_transcript_with_bert(json_file, bert_model):
 
                 if input_to_bert[-1] not in delimiters:
                     print("ERROR: missing delimiter in input to BERT!")
+                    print("""\nNOTE: Please make sure that the last 'word'
+                    field of each 'alternatives' segment in the input JSON file
+                    ends with a punctuation mark (. ? or !)""")
                     print("The current sentence:", sentence)
                     print("The input to BERT:", bert_input)
                     exit(-1)
