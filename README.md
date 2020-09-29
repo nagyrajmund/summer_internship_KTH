@@ -1,6 +1,7 @@
 # Gesticulator: A framework for semantically-aware speech-driven gesture generation
-This repository contains PyTorch based implementation of the framework for semantically-aware speech-driven gesture generation, which can be used to reproduce the experiments in the paper [Gesticulator](https://arxiv.org/abs/2001.09326).
+This repository contains my contributions to the implementation of [Gesticulator](https://svito-zar.github.io/gesticulator/) during my summer internship at KTH Royal Institute of Technology, Division of Robotics, Perception and Learning. Furthermore, the `agent_integration` branch contains several adaptations (e.g. FastText embedding instead of BERT and prosodic features instead of spectrograms) that make it possible to integrate the model into a conversational virtual agent in Unity. 
 
+The official (and up-to-date) repository of the Gesticulator project by Taras Kucherenko et al. can be found [on this link](https://github.com/Svito-zar/gesticulator).
 
 ## 0. Set up
 
