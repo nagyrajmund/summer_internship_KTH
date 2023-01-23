@@ -1,3 +1,4 @@
+*Note: This repository is archived. Please visit https://github.com/Svito-zar/gesticulator for an up-to-date version of the Gesticulator repository, which includes all changes from here.*
 # Gesticulator: A framework for semantically-aware speech-driven gesture generation
 This repository contains my contributions to the implementation of [Gesticulator](https://svito-zar.github.io/gesticulator/) during my summer internship at KTH Royal Institute of Technology, Division of Robotics, Perception and Learning. Furthermore, the `agent_integration` branch contains several adaptations (e.g. FastText embedding instead of BERT and prosodic features instead of spectrograms) that make it possible to integrate the model into a conversational virtual agent in Unity. 
 
